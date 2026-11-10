@@ -106,7 +106,7 @@ dashboardRouter.get('/', requireAuth, async (req, res) => {
     ${card(html`
       <div class="flex gap-1 overflow-x-auto px-2 sm:px-3 pt-2 border-b border-slate-200" role="tablist" aria-label="Filter by status">
         ${tabs.map(
-          (s) => html`<a role="tab" aria-selected="${filter === s}" href="${s === 'all' ? '/' : `/?status=${s}`}" class="whitespace-nowrap px-3 py-2.5 text-sm border-b-2 -mb-px transition-colors ${
+          (s) => html`<a role="tab" aria-selected="${String(filter === s)}" href="${s === 'all' ? '/' : `/?status=${s}`}" class="whitespace-nowrap px-3 py-2.5 text-sm border-b-2 -mb-px transition-colors ${
             filter === s ? 'border-brand-600 text-slate-900 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-800'
           }">${s[0].toUpperCase() + s.slice(1)} <span class="ml-0.5 rounded-full px-1.5 text-xs ${filter === s ? 'bg-brand-50 text-brand-800' : 'bg-slate-100 text-slate-500'}">${counts[s] ?? 0}</span></a>`,
         )}

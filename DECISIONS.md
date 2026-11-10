@@ -40,3 +40,4 @@ Simplest-reasonable calls made where the spec was ambiguous.
 36. **Connector rotation is disabled on the shared demo account** (`ALLOW_DEMO_ROTATE=true` re-enables it) so one reviewer can't disconnect everyone else's Claude.
 37. **Seed** resets only the demo account, keeps its MCP token, and omits Acme/INV-104 so the live demo can create it without a duplicate-number error.
 38. **No signup page**: the spec lists none; reviewers use the demo account. Signup is in ROADMAP.
+39. **Review fixes (post-Gate 5):** the login `next` param now rejects backslash paths (`/\host` was an open redirect); `mark_paid` on an already-paid invoice keeps the original `paid_at` so corrections don't distort metrics; draft invoices' pay links show "still a draft" and accept no client actions or views; the web form caps amounts at ₹1,000 crore; fixed `aria-current` / `aria-selected` rendering.

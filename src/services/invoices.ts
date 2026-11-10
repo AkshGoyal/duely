@@ -247,8 +247,9 @@ export async function markPaid(
   if (cur.status === 'cancelled') throw new UserError(`Invoice ${cur.invoice_number} is cancelled. Reopen it with update_invoice first.`);
   const amount = opts.amount_paise ?? cur.amount_paise;
   const inv = await one<Invoice>(
+    // Keep the original payment time when correcting an already-paid invoice (metrics depend on it).
     `UPDATE invoices SET status = 'paid', paid_amount_paise = $3, paid_reference = $4,
-       paid_at = now(), updated_at = now()
+       paid_at = COALESCE(paid_at, now()), updated_at = now()
      WHERE user_id = $1 AND id = $2 RETURNING *`,
     [userId, id, amount, opts.reference?.trim() || cur.paid_reference || null],
   );

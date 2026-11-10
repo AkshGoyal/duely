@@ -1,4 +1,4 @@
-import { html, Raw } from './html';
+import { html, raw, Raw } from './html';
 import { icon, logoMark } from './icons';
 
 const HEAD = (title: string) => html`
@@ -86,7 +86,7 @@ export function appPage(opts: { title: string; active?: string; business: string
         <a href="/" class="flex items-center gap-2 font-semibold tracking-tight text-slate-900">${logoMark('h-7 w-7')} Duely</a>
         <nav class="hidden md:flex items-center gap-1 text-sm" aria-label="Main">
           ${NAV.map(
-            (n) => html`<a href="${n.href}" ${opts.active === n.key ? 'aria-current="page"' : ''} class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors duration-150 ${
+            (n) => html`<a href="${n.href}" ${opts.active === n.key ? raw('aria-current="page"') : ''} class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors duration-150 ${
               opts.active === n.key ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }">${icon(n.icon)} ${n.label}</a>`,
           )}

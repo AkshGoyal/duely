@@ -70,14 +70,14 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
 
   // The owner previewing their own link must not count as the client viewing it.
   const isOwner = Number(req.session?.userId) === inv.user_id;
-  if (!isOwner && (await recordPageView(inv)) && inv.status === 'sent') inv.status = 'viewed';
+  if (!isOwner && inv.status !== 'draft' && (await recordPageView(inv)) && inv.status === 'sent') inv.status = 'viewed';
 
   const today = todayIST();
   const od = isOpen(inv.status) ? daysOverdue(inv.due_date, today) : 0;
   const dueIn = daysBetween(today, inv.due_date);
   const biz = owner.business_name;
   const done = typeof req.query.done === 'string' ? CONFIRM[req.query.done] : undefined;
-  const payable = inv.status !== 'paid' && inv.status !== 'cancelled';
+  const payable = inv.status !== 'paid' && inv.status !== 'cancelled' && inv.status !== 'draft';
   const upi = payable && owner.upi_id ? upiLink(owner, inv) : null;
   const qr = upi ? await QRCode.toDataURL(upi, { margin: 1, width: 240, errorCorrectionLevel: 'M' }) : null;
   const self = `/pay/${encodeURIComponent(String(req.params.token))}`;
@@ -114,6 +114,7 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
           ? html`<p class="mt-2 text-sm text-red-800 bg-red-50 rounded-md px-3 py-2">You raised an issue on this invoice. ${biz} will get back to you.</p>`
           : ''}
         ${inv.status === 'cancelled' ? html`<p class="mt-2 text-sm text-slate-600 bg-slate-100 rounded-md px-3 py-2">This invoice has been cancelled. Nothing to pay.</p>` : ''}
+        ${inv.status === 'draft' ? html`<p class="mt-2 text-sm text-slate-600 bg-slate-100 rounded-md px-3 py-2">This invoice is still a draft. ${biz} will send it when it's ready.</p>` : ''}
       </div>
 
       ${inv.line_items?.length || inv.notes
@@ -187,7 +188,7 @@ async function loadPayable(req: Request, res: Response): Promise<Invoice | undef
     notFound(res);
     return undefined;
   }
-  if (inv.status === 'paid' || inv.status === 'cancelled') {
+  if (inv.status === 'paid' || inv.status === 'cancelled' || inv.status === 'draft') {
     res.redirect(303, `/pay/${encodeURIComponent(String(req.params.token))}`);
     return undefined;
   }

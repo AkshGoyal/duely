@@ -27,6 +27,7 @@ export function parseInvoiceForm(body: Record<string, unknown>, mode: 'new' | 'e
   if (!client_name) return { error: 'Client name is required.' };
   const amount = Number(s('amount').replace(/,/g, ''));
   if (!Number.isFinite(amount) || amount <= 0) return { error: 'Amount must be a number greater than 0.' };
+  if (amount > 1e10) return { error: 'Amount is too large (max ₹1,000 crore).' };
   const due_date = s('due_date');
   if (!isValidDate(due_date)) return { error: 'Due date is required.' };
   const issue_date = s('issue_date');
@@ -46,7 +47,7 @@ export function parseInvoiceForm(body: Record<string, unknown>, mode: 'new' | 'e
     const a = (amts[i] ?? '').trim();
     if (!d && !a) continue;
     const n = Number(a.replace(/,/g, ''));
-    if (!d || !Number.isFinite(n) || n <= 0) return { error: `Line item ${i + 1} needs a description and an amount greater than 0.` };
+    if (!d || !Number.isFinite(n) || n <= 0 || n > 1e10) return { error: `Line item ${i + 1} needs a description and an amount greater than 0.` };
     line_items.push({ description: d.slice(0, 300), amount_paise: toPaise(n) });
   }
 

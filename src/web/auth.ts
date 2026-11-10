@@ -55,7 +55,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
 }
 
-const safeNext = (n: unknown) => (typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') ? n : '/');
+/** Same-site paths only. Rejects //host and /\\host (browsers treat a backslash like a slash). */
+const safeNext = (n: unknown) => (typeof n === 'string' && /^\/(?![\/\\])/.test(n) && !/[\\\s]/.test(n) ? n : '/');
 
 function loginPage(opts: { error?: string; email?: string; next?: string }) {
   return barePage({
