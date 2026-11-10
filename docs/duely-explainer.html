@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Duely Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+  /* Layout idea: one readable column with wide figures and tables; Duely's emerald as the single accent. */
+  :root {
+    --bg: #f7f9f8;
+    --surface: #ffffff;
+    --ink: #10201a;
+    --muted: #55655e;
+    --line: #dce5e0;
+    --accent: #047857;
+    --accent-soft: #e3f4ec;
+    --warn: #b45309;
+    --bad: #b91c1c;
+    --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1512; --surface: #13201b; --ink: #e6efea; --muted: #9fb3aa; --line: #26362f;
+      --accent: #34d399; --accent-soft: #123528; --warn: #f59e0b; --bad: #f87171; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1512; --surface: #13201b; --ink: #e6efea; --muted: #9fb3aa; --line: #26362f;
+    --accent: #34d399; --accent-soft: #123528; --warn: #f59e0b; --bad: #f87171; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--font-body); -webkit-font-smoothing: antialiased; }
+  main { max-width: 980px; margin: 0 auto; padding: 48px 20px 80px; display: grid; gap: 56px; }
+  .prose { max-width: 68ch; }
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+  h1 { font: 700 clamp(2.2rem, 5vw, 3.4rem)/1.05 var(--font-display); letter-spacing: -0.01em; }
+  h2 { font: 600 1.7rem/1.2 var(--font-display); margin-bottom: 12px; }
+  h3 { font-size: 1rem; font-weight: 600; }
+  p { margin: 0 0 12px; }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+  code { background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .label { font: 500 0.75rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+
+  header { display: grid; gap: 18px; }
+  .lede { font-size: 1.2rem; color: var(--muted); max-width: 60ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; }
+  .fact { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 0.9rem; }
+  .fact b { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 500; }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .panel.accent { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+  .panel ul { margin: 8px 0 0; padding-left: 18px; }
+  .panel li { margin: 4px 0; }
+
+  figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; overflow-x: auto; }
+  figure svg { display: block; width: 100%; min-width: 720px; height: auto; color: var(--ink); }
+  figcaption { margin-top: 12px; font-size: 0.9rem; color: var(--muted); max-width: 70ch; }
+
+  ol.beats { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: beat; }
+  ol.beats li { counter-increment: beat; display: grid; grid-template-columns: 44px 1fr; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  ol.beats li::before { content: counter(beat); display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--surface); font-weight: 700; }
+  .say { margin-top: 6px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); font-size: 0.93rem; }
+  .tool { font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent); }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.93rem; min-width: 640px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 0.72rem/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: var(--bg); }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { white-space: nowrap; }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .metric { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+  .metric.star { grid-column: 1 / -1; border-color: var(--accent); }
+  .metric h3 { font-size: 1.02rem; }
+  .metric .why { font-size: 0.88rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font: 500 0.78rem/1 var(--font-mono); padding: 6px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); }
+  .chip.client { border-color: var(--warn); color: var(--warn); }
+  .chip.claude { border-color: var(--accent); color: var(--accent); }
+
+  .limits { display: grid; gap: 10px; }
+  .limit { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 0.93rem; }
+  .limit .v2 { color: var(--muted); }
+  .limit .v2::before { content: 'v2: '; font-family: var(--font-mono); color: var(--accent); }
+
+  footer { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 18px; }
+
+  @media (max-width: 720px) {
+    main { padding-top: 32px; gap: 44px; }
+    .split, .limit { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main>
+
+  <header>
+    <p class="label">Volopay Founder's Office assignment · v1</p>
+    <h1>Duely: your Claude chases overdue invoices</h1>
+    <p class="lede">Your own Claude chases overdue invoices. Duely keeps every payment link live and every client promise on record. Duely itself contains no AI: the customer's Claude does all the thinking and writing over MCP.</p>
+    <div class="facts">
+      <div class="fact"><b>Live app</b><a href="https://duely-production-dc131949.up.railway.app">duely-production-dc131949.up.railway.app</a></div>
+      <div class="fact"><b>Demo login</b><span class="mono">demo@duely.app / duely-demo-2026</span></div>
+      <div class="fact"><b>Customer</b>Indian freelancers &amp; agencies with 5–50 open invoices</div>
+      <div class="fact"><b>Stack</b>Node 20 · Express · Postgres · MCP SDK</div>
+    </div>
+  </header>
+
+  <section>
+    <p class="label">The idea</p>
+    <h2>Claude supplies the judgement. Duely supplies the memory.</h2>
+    <div class="prose">
+      <p>Clients pay late, and chasing them is awkward, manual and easy to forget. Nobody tracks who promised to pay when. Claude is good at the awkward part: choosing a tone and writing a polite but firm message. It can't remember that Acme promised to pay last Tuesday and didn't, and it can't host a page the client can pay from. Duely does exactly those things.</p>
+    </div>
+    <div class="split">
+      <div class="panel accent">
+        <h3>Claude (the customer's own)</h3>
+        <ul>
+          <li>Understands "Acme owes me ₹85k, due 20 Oct"</li>
+          <li>Writes every reminder, matching its tone to the history</li>
+          <li>Decides who to chase today and how firmly</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Duely (no model inside)</h3>
+        <ul>
+          <li>Stores invoices, amounts in paise, dates in IST</li>
+          <li>Hosts a public pay page with a UPI QR and one-tap client replies</li>
+          <li>Logs every event: viewed, promised, paid, disputed, nudged</li>
+          <li>Hands that memory back to Claude with a <code>next_step_hint</code></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="label">Architecture</p>
+    <h2>One service, three audiences</h2>
+    <figure>
+      <svg viewBox="0 0 900 380" role="img" aria-label="Claude calls Duely's MCP endpoint, the owner uses the dashboard, and the client uses the public pay page; all three read and write the same Postgres tables, with every action appended to the events log.">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g font-family="IBM Plex Sans, system-ui, sans-serif" font-size="13" fill="currentColor">
+          <!-- actors -->
+          <rect x="20" y="30" width="190" height="70" rx="12" fill="none" stroke="#059669" stroke-width="2"/>
+          <text x="115" y="60" text-anchor="middle" font-weight="600">Customer's Claude</text>
+          <text x="115" y="80" text-anchor="middle" opacity=".7">claude.ai connector</text>
+
+          <rect x="20" y="155" width="190" height="70" rx="12" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="115" y="185" text-anchor="middle" font-weight="600">Owner (freelancer)</text>
+          <text x="115" y="205" text-anchor="middle" opacity=".7">browser, logged in</text>
+
+          <rect x="20" y="280" width="190" height="70" rx="12" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="115" y="310" text-anchor="middle" font-weight="600">Client (who owes)</text>
+          <text x="115" y="330" text-anchor="middle" opacity=".7">phone, no login</text>
+
+          <!-- service -->
+          <rect x="320" y="20" width="270" height="340" rx="14" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="5 5"/>
+          <text x="455" y="45" text-anchor="middle" font-weight="600">Duely (Express on Railway)</text>
+          <rect x="345" y="65" width="220" height="50" rx="8" fill="none" stroke="#059669"/>
+          <text x="455" y="88" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12">POST /mcp/:token</text>
+          <text x="455" y="105" text-anchor="middle" opacity=".7" font-size="11">7 tools · stateless</text>
+          <rect x="345" y="165" width="220" height="50" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="455" y="188" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12">/  /invoices/:id</text>
+          <text x="455" y="205" text-anchor="middle" opacity=".7" font-size="11">dashboard · editor · metrics</text>
+          <rect x="345" y="290" width="220" height="50" rx="8" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="455" y="313" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12">/pay/:token</text>
+          <text x="455" y="330" text-anchor="middle" opacity=".7" font-size="11">UPI QR · paid / promise / issue</text>
+
+          <!-- db -->
+          <rect x="680" y="95" width="200" height="200" rx="14" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="780" y="125" text-anchor="middle" font-weight="600">Postgres</text>
+          <text x="780" y="155" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12">users</text>
+          <text x="780" y="180" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12">invoices</text>
+          <text x="780" y="205" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12">nudges</text>
+          <rect x="715" y="222" width="130" height="30" rx="6" fill="none" stroke="#059669"/>
+          <text x="780" y="242" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12">events (log)</text>
+          <text x="780" y="275" text-anchor="middle" opacity=".7" font-size="11">feeds metrics + memory</text>
+
+          <!-- arrows: actors to routes -->
+          <line x1="210" y1="65" x2="343" y2="88" stroke="#059669" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="268" y="62" text-anchor="middle" font-size="11">tool calls</text>
+          <line x1="210" y1="190" x2="343" y2="190" stroke="currentColor" marker-end="url(#arrow)"/>
+          <text x="276" y="182" text-anchor="middle" font-size="11">edits</text>
+          <line x1="210" y1="315" x2="343" y2="315" stroke="currentColor" marker-end="url(#arrow)"/>
+          <text x="276" y="307" text-anchor="middle" font-size="11">one-tap replies</text>
+
+          <!-- routes to db -->
+          <line x1="565" y1="90" x2="678" y2="150" stroke="currentColor" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+          <line x1="565" y1="190" x2="678" y2="195" stroke="currentColor" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+          <line x1="565" y1="315" x2="678" y2="245" stroke="currentColor" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+          <text x="622" y="108" text-anchor="middle" font-size="11">read / write</text>
+
+          <!-- memory back to claude -->
+          <path d="M 455 63 C 455 6, 160 6, 115 28" fill="none" stroke="#059669" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+          <text x="300" y="16" text-anchor="middle" font-size="11">JSON + history + next_step_hint</text>
+        </g>
+      </svg>
+      <figcaption>Three audiences, one database. Whatever Claude, the owner or the client does lands in the same tables and appends an event, so each side sees the others' actions immediately. The dashed arrow is the point of the product: Claude gets the history back with every response.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="label">The core loop</p>
+    <h2>The 5-beat demo</h2>
+    <ol class="beats">
+      <li><div><h3>Claude creates something real</h3>
+        <p class="muted">"Acme Studios owes me ₹85,000 for the October retainer, INV-104, due 20 Oct. Create it in Duely and draft a WhatsApp nudge, firm but friendly."</p>
+        <p><span class="tool">create_invoice → save_nudge</span>: Claude writes the message; Duely appends the pay link and returns a ready <code>wa.me</code> link.</p></div></li>
+      <li><div><h3>The client replies from their phone</h3>
+        <p>The pay page shows ₹85,000, "22 days overdue", a UPI button and QR. The client taps <b>I'll pay by</b> a date. No login, no app.</p></div></li>
+      <li><div><h3>The owner sees it and edits</h3>
+        <p>The dashboard shows Acme as <b>Promised</b>. The owner changes the amount to ₹80,000; the timeline records "₹85,000 → ₹80,000, on web".</p></div></li>
+      <li><div><h3>Claude decides who to chase</h3>
+        <p class="muted">"Who owes me money and what should I do today?"</p>
+        <p><span class="tool">get_receivables_summary</span>: broken promises first, then disputes, then days overdue × amount, each with a suggested action. Claude knows Acme has promised and holds off.</p></div></li>
+      <li><div><h3>Proof it's a business</h3>
+        <p><code>/metrics</code> computes the north star and six supporting metrics live from the event log.</p></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <p class="label">The MCP surface</p>
+    <h2>Seven tools; the descriptions are the prompt</h2>
+    <p class="prose">Each tool description is written as carefully as product copy, because it's the only instruction Claude gets. Every response carries the computed memory (days overdue, promise broken, last client action, nudges sent) plus a short <code>next_step_hint</code>. Bad input returns a sentence Claude can act on, such as "Due date must be a real calendar date in YYYY-MM-DD format".</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>What Claude does with it</th><th>What Duely returns</th></tr></thead>
+        <tbody>
+          <tr><td class="tool">create_invoice</td><td>Logs money owed from one sentence</td><td>Pay link, edit link, days overdue</td></tr>
+          <tr><td class="tool">list_invoices</td><td>Finds ids, checks duplicates, "has Acme paid?"</td><td>Rows with promise status and last client action</td></tr>
+          <tr><td class="tool">get_invoice</td><td>Reads history before writing a follow-up</td><td>Full timeline and every past nudge</td></tr>
+          <tr><td class="tool">update_invoice</td><td>Corrections, recording a phone-call promise, cancelling</td><td>Changed fields, logged as an edit</td></tr>
+          <tr><td class="tool">save_nudge</td><td>Saves a reminder it wrote (≤80 words, never threatening)</td><td><code>wa.me</code> + <code>mailto:</code> links, soft warnings</td></tr>
+          <tr><td class="tool">mark_paid</td><td>Records payment with UTR</td><td>Paid state, shortfall if partial</td></tr>
+          <tr><td class="tool">get_receivables_summary</td><td>"What should I do today?"</td><td>Totals, aging, promises, disputes, ranked list</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="label">Memory</p>
+    <h2>Everything is an event</h2>
+    <div class="prose">
+      <p>Four tables: <code>users</code>, <code>invoices</code>, <code>nudges</code> and an append-only <code>events</code> log. Money is stored as integer paise and shown in Indian grouping (₹1,25,000). "Days overdue" is counted from today in Asia/Kolkata. A promise is broken when its date has passed and the invoice is still unpaid.</p>
+      <p>Each event records who caused it, so the timeline reads like a story and the metrics can tell a client's action from Claude's.</p>
+    </div>
+    <div class="chips" aria-label="Event types">
+      <span class="chip claude">invoice_created</span><span class="chip claude">invoice_edited</span><span class="chip claude">nudge_saved</span><span class="chip claude">summary_requested</span><span class="chip claude">mcp_connected</span>
+      <span class="chip client">page_viewed</span><span class="chip client">promise_made</span><span class="chip client">issue_raised</span><span class="chip">marked_paid</span>
+    </div>
+    <p class="muted" style="margin-top:8px;font-size:.88rem">Green: usually Claude or the owner. Amber: usually the client. <code>marked_paid</code> can come from any of them.</p>
+  </section>
+
+  <section>
+    <p class="label">Founder's Office</p>
+    <h2>Metrics, computed live from the log</h2>
+    <div class="metrics">
+      <div class="metric star"><p class="label" style="margin:0">North star</p><h3>₹ collected through Duely links within 30 days of due date</h3>
+        <p class="why">Counts paid invoices where the client acted on the pay link or Claude sent a nudge. It measures cash Duely actually helped bring in, not invoices logged.</p></div>
+      <div class="metric"><h3>Activation</h3><p>Connected Claude and first invoice created by Claude within 24h of signup.</p><p class="why">The "aha" is Claude creating something real, not signing up.</p></div>
+      <div class="metric"><h3>Time to first link</h3><p>Median time from signup to first invoice.</p><p class="why">Every invoice is a live pay link, so this is time to value.</p></div>
+      <div class="metric"><h3>Client response rate</h3><p>Pay links where the client tapped paid, promise or issue.</p><p class="why">Shows whether the pay page earns a reply, which is where the growth footer lives.</p></div>
+      <div class="metric"><h3>Promise-kept rate</h3><p>Resolved promises paid on or before the promised date.</p><p class="why">The memory that justifies the product. It also tells Claude whom to trust.</p></div>
+      <div class="metric"><h3>Due date → paid</h3><p>Average days from due date to payment.</p><p class="why">The outcome customers feel. Lower is better.</p></div>
+      <div class="metric"><h3>Edit rate</h3><p>Claude-created invoices edited afterwards.</p><p class="why">A tool-quality proxy: if people keep correcting Claude, the tool descriptions need work.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="label">Trust</p>
+    <h2>How the constraints are met</h2>
+    <div class="split">
+      <div class="panel">
+        <h3>No AI inside</h3>
+        <ul>
+          <li>No model SDKs, keys or LLM calls; the brief's grep returns nothing</li>
+          <li>All client-facing text arrives as tool arguments from the customer's Claude</li>
+          <li>Priority and suggested actions are plain sorting rules</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Safety basics</h3>
+        <ul>
+          <li>21+ character random tokens for pay links and connectors, never logged</li>
+          <li>All user and Claude text escaped by default in HTML</li>
+          <li>Rate-limited pay-page replies and login; bcrypt passwords; secure cookies</li>
+          <li>Review pass fixed an open redirect and a payment-date overwrite</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="label">Honest limits</p>
+    <h2>What v1 trades away, and what's next</h2>
+    <div class="limits">
+      <div class="limit"><span>A client's "I've paid" marks the invoice paid immediately.</span><span class="v2">a "claimed" state the owner confirms</span></div>
+      <div class="limit"><span>The connector URL is the credential.</span><span class="v2">OAuth for MCP</span></div>
+      <div class="limit"><span>Owner taps a WhatsApp link to send.</span><span class="v2">auto-send via WhatsApp Business API</span></div>
+      <div class="limit"><span>UPI goes direct to the owner; Duely earns nothing on it.</span><span class="v2">Razorpay payment links with a take rate</span></div>
+      <div class="limit"><span>Single demo account, no signup.</span><span class="v2">self-serve signup, teams, Tally / Zoho sync, GST invoice PDF</span></div>
+    </div>
+  </section>
+
+  <footer>Built in one evening as v1. Source decisions are logged in DECISIONS.md, the demo script in DEMO.md.</footer>
+</main>
+</body>
+</html>
