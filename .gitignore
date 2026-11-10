@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+.DS_Store
+# Kickoff brief stays local: it quotes the no-AI grep pattern, which would make the grep match itself.
+CLAUDE.md
+.claude
