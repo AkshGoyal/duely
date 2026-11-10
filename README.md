@@ -9,8 +9,8 @@ Duely has no model inside. The customer connects their own Claude over MCP; Clau
 - [x] Gate 1: skeleton live (`/health`, MCP endpoint with a `ping` tool)
 - [x] Gate 2: Postgres + 7 invoice tools
 - [x] Gate 3: login, dashboard, editor, pay page
-- [ ] Gate 4: `/metrics`, `/connect`, seed
-- [ ] Gate 5: QA + `DEMO.md`
+- [x] Gate 4: `/metrics`, `/connect`, seed
+- [x] Gate 5: QA + [`DEMO.md`](DEMO.md)
 
 ## Run locally
 
@@ -76,6 +76,7 @@ In the Inspector UI: **Transport type** = Streamable HTTP, **URL** = your connec
 | `DATABASE_URL` | Gate 2 | Railway: add a Postgres service, then reference `${{Postgres.DATABASE_URL}}` |
 | `PUBLIC_BASE_URL` | Gate 2 | `https://<your-domain>` (used to build pay/edit links; falls back to Railway's `RAILWAY_PUBLIC_DOMAIN`) |
 | `DEMO_MCP_TOKEN` | Gate 2, optional | Fixes the demo user's connector token when the user is first created (21+ URL-safe chars). Otherwise a random one is generated; read it with `npm run connect-url`. |
+| `ALLOW_DEMO_ROTATE` | optional | `true` lets the shared demo account rotate its connector URL (off by default) |
 | `SESSION_SECRET` | Gate 3 | Long random string, e.g. `openssl rand -hex 32`. If unset, a random one is used and everyone is logged out on each deploy. |
 
 ## MCP tools
@@ -99,7 +100,20 @@ In the Inspector UI: **Transport type** = Streamable HTTP, **URL** = your connec
 | `/invoices/new` | Owner | Manual creation (works without Claude) |
 | `/invoices/:id` | Owner | Edit all fields + line items, status override, mark paid, pay link, nudges, timeline |
 | `/pay/:token` | Client, public | Amount, days overdue, UPI QR + deep link, "I've paid" / "I'll pay by" / "There's an issue" |
+| `/connect` | Owner | Connector URL + copy, connection status, setup steps, example prompts, rotate token |
+| `/metrics` | Owner | North star + activation, time to first link, response rate, promise-kept, due→paid, edit rate, Claude vs web |
 
 ## Demo login
 
-Seeded from Gate 4: `demo@duely.app` / `duely-demo-2026`.
+`demo@duely.app` / `duely-demo-2026`
+
+## Seed demo data
+
+Resets the demo account to 10 realistic invoices over the last 45 days (broken promise, dispute, paid, draft, cancelled). It keeps the demo user's connector token, so a connected Claude keeps working.
+
+```bash
+npm run seed          # production build (Railway console)
+npm run seed:dev      # local, via tsx
+```
+
+See [DEMO.md](DEMO.md) for the 5-beat demo script and QA checklist.

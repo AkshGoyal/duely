@@ -6,6 +6,8 @@ import { authRouter, loadUser, sessions } from './web/auth';
 import { dashboardRouter } from './web/dashboard';
 import { html } from './web/html';
 import { invoicesRouter } from './web/invoices';
+import { connectRouter } from './web/connect';
+import { metricsRouter } from './web/metrics';
 import { barePage } from './web/layout';
 import { payRouter } from './web/pay';
 
@@ -44,6 +46,8 @@ app.use(payRouter);
 app.use(authRouter);
 app.use(dashboardRouter);
 app.use(invoicesRouter);
+app.use(connectRouter);
+app.use(metricsRouter);
 
 const messagePage = (title: string, msg: string) =>
   String(

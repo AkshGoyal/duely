@@ -13,7 +13,9 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "connect-url": "node dist/scripts/connect-url.js",
-    "connect-url:dev": "tsx src/scripts/connect-url.ts"
+    "connect-url:dev": "tsx src/scripts/connect-url.ts",
+    "seed": "node dist/scripts/seed.js",
+    "seed:dev": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",

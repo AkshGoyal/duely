@@ -1,6 +1,7 @@
 import { isValidDate, toPaise, toRupees } from '../lib/format';
 import { InvoiceInput, LineItem, STATUSES, Status } from '../services/invoices';
 import { html } from './html';
+import { icon } from './icons';
 import { inputCls, labelCls } from './ui';
 
 export interface FormValues {
@@ -69,7 +70,7 @@ const lineRow = (li?: { description: string; amount: number | string }) => html`
   <div class="li-row flex gap-2">
     <input class="${inputCls}" name="li_desc" placeholder="Description" value="${li?.description ?? ''}" maxlength="300" />
     <input class="${inputCls} w-36 text-right num" name="li_amount" type="number" step="0.01" min="0" placeholder="₹" value="${li?.amount ?? ''}" />
-    <button type="button" class="li-remove shrink-0 rounded-md px-2 text-slate-400 hover:text-red-600" aria-label="Remove line">✕</button>
+    <button type="button" class="li-remove inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors" aria-label="Remove line">${icon('x')}</button>
   </div>`;
 
 export function invoiceFormFields(v: FormValues, mode: 'new' | 'edit') {
@@ -87,7 +88,7 @@ export function invoiceFormFields(v: FormValues, mode: 'new' | 'edit') {
     ${field('issue_date', 'Issue date', html`<input class="${inputCls}" id="issue_date" name="issue_date" type="date" value="${v.issue_date ?? ''}" />`)}
     ${field('due_date', 'Due date *', html`<input class="${inputCls}" id="due_date" name="due_date" type="date" required value="${v.due_date ?? ''}" />`)}
     ${field('status', mode === 'edit' ? 'Status (override)' : 'Status', html`<select class="${inputCls}" id="status" name="status">
-        ${statuses.map((s) => html`<option value="${s}" ${v.status === s ? 'selected' : ''}>${s}</option>`)}
+        ${statuses.map((s) => html`<option value="${s}" ${v.status === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`)}
       </select>`)}
     ${mode === 'edit'
       ? field('promise_date', 'Client promised to pay by', html`<input class="${inputCls}" id="promise_date" name="promise_date" type="date" value="${v.promise_date ?? ''}" />`)
@@ -97,7 +98,7 @@ export function invoiceFormFields(v: FormValues, mode: 'new' | 'edit') {
 
   <div class="mt-6">
     <div class="flex items-center justify-between mb-2">
-      <span class="${labelCls} mb-0">Line items (optional)</span>
+      <span class="text-sm font-medium text-slate-700">Line items <span class="font-normal text-slate-400">(optional)</span></span>
       <span class="text-xs text-slate-500">Total: <span id="li-total" class="num font-medium text-slate-700">₹0</span>
         <button type="button" id="li-use-total" class="ml-2 text-brand-700 hover:underline">Use as amount</button></span>
     </div>
@@ -107,7 +108,7 @@ export function invoiceFormFields(v: FormValues, mode: 'new' | 'edit') {
       )}
     </div>
     <template id="li-template">${lineRow()}</template>
-    <button type="button" id="li-add" class="mt-2 text-sm text-brand-700 font-medium hover:underline">+ Add line</button>
+    <button type="button" id="li-add" class="mt-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 transition-colors">${icon('plus')} Add line</button>
   </div>
 
   <script>
@@ -121,8 +122,8 @@ export function invoiceFormFields(v: FormValues, mode: 'new' | 'edit') {
       document.getElementById('li-add').onclick = () => { list.appendChild(tpl.content.cloneNode(true)); update(); };
       document.getElementById('li-use-total').onclick = () => { const t = sum(); if (t > 0) document.getElementById('amount').value = t.toFixed(2).replace(/\\.00$/, ''); };
       list.addEventListener('click', (e) => {
-        if (!e.target.classList.contains('li-remove')) return;
-        const row = e.target.closest('.li-row');
+        const btn = e.target.closest('.li-remove'); if (!btn) return;
+        const row = btn.closest('.li-row');
         if (list.querySelectorAll('.li-row').length > 1) row.remove(); else row.querySelectorAll('input').forEach((i) => (i.value = ''));
         update();
       });

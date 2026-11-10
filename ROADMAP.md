@@ -6,3 +6,7 @@
 - Teams / multiple seats per business
 - Tally / Zoho Books sync
 - GST invoice PDF
+- Self-serve signup + onboarding (v1 uses the seeded demo account)
+- "Claimed paid" status so the owner confirms client-reported payments before they count
+- Partial payments and balance tracking
+- Per-account metrics view alongside the product-wide one

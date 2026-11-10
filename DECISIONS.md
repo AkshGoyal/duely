@@ -31,3 +31,12 @@ Simplest-reasonable calls made where the spec was ambiguous.
 27. **Pay page sends `Referrer-Policy: no-referrer` and `Cache-Control: no-store`** so the token doesn't leak through Referer headers or shared caches.
 28. **Web form edits** always post a status; if only the promise date changed, the status is left to the service so the invoice still moves to `promised`.
 29. **Nav shows only built pages**: Connect and Metrics links arrive with Gate 4.
+30. **UI direction** came from the ui-ux-pro-max skill, with one override: its database suggested dark or gold fintech themes, but the brief says white with one accent, so the palette is white/slate + emerald (from general defaults). The skill's rules are applied: Inter + tabular figures, SVG icons (no emoji), status = dot + text (never colour alone), visible focus rings, 44–52px tap targets on the pay page, "Saving…" feedback on submit, `prefers-reduced-motion`, card list instead of a table on phones.
+31. **Metrics are product-wide** (all accounts), not per user: `/metrics` is the founder's view.
+32. **North star "through Duely links"** = paid invoices where the client acted on the pay link or Claude saved a nudge, paid on or before due date + 30 days.
+33. **Client response rate** counts promise / paid / issue taps; opening the link alone is shown separately as "opened".
+34. **Promise-kept rate** only counts resolved promises (paid, or promise date already passed); future promises show as pending.
+35. **Edit rate** counts any later `invoice_edited` on a Claude-created invoice (by a human on the web or via Claude).
+36. **Connector rotation is disabled on the shared demo account** (`ALLOW_DEMO_ROTATE=true` re-enables it) so one reviewer can't disconnect everyone else's Claude.
+37. **Seed** resets only the demo account, keeps its MCP token, and omits Acme/INV-104 so the live demo can create it without a duplicate-number error.
+38. **No signup page**: the spec lists none; reviewers use the demo account. Signup is in ROADMAP.

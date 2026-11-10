@@ -7,6 +7,7 @@ import {
 } from '../services/invoices';
 import { findUserById, User } from '../services/users';
 import { html, Raw } from './html';
+import { icon, logoMark } from './icons';
 import { barePage } from './layout';
 
 export const payRouter = Router();
@@ -33,7 +34,7 @@ function shell(title: string, content: Raw) {
     <main class="min-h-screen flex flex-col items-center px-4 py-6 sm:py-12">
       <div class="w-full max-w-md">${content}</div>
       <footer class="mt-8 text-center text-xs text-slate-500">
-        <a href="/login" class="hover:text-slate-800">Sent with <span class="font-semibold text-slate-700">Duely</span> — get paid on time</a>
+        <a href="/login" class="inline-flex items-center gap-2 rounded-full px-3 py-2 hover:bg-white hover:text-slate-800 transition-colors">${logoMark('h-5 w-5')} Sent with <span class="font-semibold text-slate-700">Duely</span> — get paid on time</a>
       </footer>
     </main>`,
   });
@@ -92,13 +93,19 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
 
   const content = html`
     ${isOwner ? html`<div class="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">You're viewing your own pay link. Your visit isn't recorded as a client view.</div>` : ''}
-    ${done ? html`<div class="mb-4 rounded-2xl bg-brand-600 text-white p-5 shadow-sm" role="status">${done(inv, biz)}</div>` : ''}
+    ${done ? html`<div class="mb-4 flex gap-3 rounded-2xl bg-brand-600 text-white p-5 shadow-sm" role="status">${icon('checkCircle', 'h-6 w-6 shrink-0')}<div>${done(inv, biz)}</div></div>` : ''}
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="bg-white rounded-3xl shadow-card border border-slate-200 overflow-hidden">
       <div class="p-6 border-b border-slate-100">
-        <p class="text-sm text-slate-500">${biz}</p>
-        <p class="text-xs text-slate-400 mt-0.5">Invoice ${inv.invoice_number} · for ${inv.client_name}</p>
-        <p class="mt-4 text-4xl font-bold tracking-tight num">${formatINR(inv.amount_paise)}</p>
+        <div class="flex items-center gap-3">
+          <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white" aria-hidden="true">${biz.trim().slice(0, 1).toUpperCase()}</span>
+          <div class="min-w-0">
+            <p class="font-semibold text-slate-900 truncate">${biz}</p>
+            <p class="text-xs text-slate-500">Invoice ${inv.invoice_number} · for ${inv.client_name}</p>
+          </div>
+        </div>
+        <p class="mt-5 text-xs font-medium uppercase tracking-wide text-slate-500">Amount due</p>
+        <p class="mt-1 text-4xl font-bold tracking-tight num text-slate-900">${formatINR(inv.amount_paise)}</p>
         <p class="mt-2 text-sm text-slate-600">${dueLine}</p>
         ${inv.status === 'promised' && inv.promise_date && !done
           ? html`<p class="mt-2 text-sm text-amber-800 bg-amber-50 rounded-md px-3 py-2">You said you'd pay by ${formatDate(inv.promise_date)}.</p>`
@@ -122,10 +129,11 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
 
       ${upi
         ? html`<div class="p-6 border-b border-slate-100 text-center">
-            <a href="${upi}" class="flex w-full items-center justify-center rounded-xl bg-brand-600 px-4 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-brand-700">Pay ${formatINR(inv.amount_paise)} with UPI app</a>
+            <a href="${upi}" class="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 active:bg-brand-800">${icon('smartphone', 'h-5 w-5')} Pay ${formatINR(inv.amount_paise)} with UPI app</a>
             <p class="mt-4 text-xs text-slate-500">or scan with any UPI app</p>
             <img src="${qr}" alt="UPI QR code for ${formatINR(inv.amount_paise)}" class="mx-auto mt-2 h-48 w-48 rounded-lg border border-slate-200 p-1" />
             <p class="mt-2 text-xs text-slate-500">UPI ID: <span class="font-mono text-slate-700">${owner.upi_id}</span></p>
+            <p class="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-500">${icon('shield', 'h-3.5 w-3.5 text-brand-600')} You pay ${biz} directly. Duely never touches the money.</p>
           </div>`
         : payable
           ? html`<div class="p-6 border-b border-slate-100 text-sm text-slate-600">Please pay ${biz} using the bank details they shared with you.</div>`
@@ -133,32 +141,32 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
 
       ${payable
         ? html`<div class="p-6 space-y-3">
-            <p class="text-sm font-medium text-slate-700">Let ${biz} know</p>
+            <p class="text-sm font-semibold text-slate-900">Already sorted, or need more time?</p><p class="text-xs text-slate-500 -mt-2">Let ${biz} know in one tap.</p>
 
             <details class="group rounded-xl border border-slate-200 open:border-brand-600">
-              <summary class="cursor-pointer list-none px-4 py-3 font-medium flex justify-between items-center">I've paid <span class="text-slate-400 group-open:rotate-180 transition">⌄</span></summary>
+              <summary class="cursor-pointer list-none min-h-[48px] px-4 py-3 font-medium text-slate-900 flex justify-between items-center rounded-xl hover:bg-slate-50">I've paid ${icon('chevronDown', 'h-5 w-5 text-slate-400 transition-transform group-open:rotate-180')}</summary>
               <form method="post" action="${self}/paid" class="px-4 pb-4 space-y-3">
                 <label class="block text-xs text-slate-600" for="ref">UTR / transaction reference (optional)</label>
                 <input id="ref" name="reference" maxlength="100" inputmode="text" autocomplete="off" class="block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" placeholder="e.g. 412345678901" />
-                <button class="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Confirm payment sent</button>
+                <button class="w-full min-h-[48px] rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800" data-loading="Sending…">Confirm payment sent</button>
               </form>
             </details>
 
             <details class="group rounded-xl border border-slate-200 open:border-brand-600">
-              <summary class="cursor-pointer list-none px-4 py-3 font-medium flex justify-between items-center">I'll pay by a date <span class="text-slate-400 group-open:rotate-180 transition">⌄</span></summary>
+              <summary class="cursor-pointer list-none min-h-[48px] px-4 py-3 font-medium text-slate-900 flex justify-between items-center rounded-xl hover:bg-slate-50">I'll pay by a date ${icon('chevronDown', 'h-5 w-5 text-slate-400 transition-transform group-open:rotate-180')}</summary>
               <form method="post" action="${self}/promise" class="px-4 pb-4 space-y-3">
                 <label class="block text-xs text-slate-600" for="pdate">I'll pay by</label>
                 <input id="pdate" name="promise_date" type="date" required min="${today}" max="${addDays(today, MAX_PROMISE_DAYS)}" value="${addDays(today, 3)}" class="block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600" />
-                <button class="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Send promise</button>
+                <button class="w-full min-h-[48px] rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800" data-loading="Sending…">Send promise</button>
               </form>
             </details>
 
             <details class="group rounded-xl border border-slate-200 open:border-red-500">
-              <summary class="cursor-pointer list-none px-4 py-3 font-medium flex justify-between items-center">There's an issue <span class="text-slate-400 group-open:rotate-180 transition">⌄</span></summary>
+              <summary class="cursor-pointer list-none min-h-[48px] px-4 py-3 font-medium text-slate-900 flex justify-between items-center rounded-xl hover:bg-slate-50">There's an issue ${icon('chevronDown', 'h-5 w-5 text-slate-400 transition-transform group-open:rotate-180')}</summary>
               <form method="post" action="${self}/issue" class="px-4 pb-4 space-y-3">
                 <label class="block text-xs text-slate-600" for="issue">What's wrong?</label>
                 <textarea id="issue" name="message" required minlength="3" maxlength="1000" rows="3" class="block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="e.g. Amount should be ₹80,000 as agreed"></textarea>
-                <button class="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Send to ${biz}</button>
+                <button class="w-full min-h-[48px] rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800" data-loading="Sending…">Send to ${biz}</button>
               </form>
             </details>
           </div>`

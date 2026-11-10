@@ -40,3 +40,10 @@ export async function ensureDemoUser(): Promise<User> {
   console.log('Demo user ready: ' + DEMO_EMAIL);
   return u;
 }
+
+/** Issues a new connector token; the old URL stops working immediately. */
+export async function rotateMcpToken(userId: number): Promise<string> {
+  const token = newMcpToken();
+  await query('UPDATE users SET mcp_token = $2 WHERE id = $1', [userId, token]);
+  return token;
+}
