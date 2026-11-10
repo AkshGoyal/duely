@@ -283,7 +283,7 @@ export function registerTools(server: McpServer, user: User) {
       description:
         'Record that the user received payment for an invoice. Use when the user confirms money arrived (e.g. "Acme paid, UTR 4521..."). ' +
         'amount defaults to the full invoice amount; pass it if they paid a different amount. reference is the UTR / transaction id / cheque number, if known. ' +
-        'Only call this when the user confirms receipt; a client saying "I\'ve paid" on the pay link is a claim the user should check first.',
+        'Only call this when the user confirms receipt. If the client already tapped "I\'ve paid" on the pay link, the invoice is already marked paid (paid_reference holds their UTR, timeline shows "by client"); call this only to correct the amount or reference.',
       inputSchema: {
         id: invoiceId,
         amount: rupees('Amount received').optional(),

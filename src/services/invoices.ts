@@ -322,3 +322,32 @@ export function invoiceView(inv: Invoice, today = todayIST()) {
     edit_url: editUrl(inv.id),
   };
 }
+
+// ---------- client actions from the public pay page ----------
+
+/** Logs the first client view only and moves sent -> viewed. Returns true if this was the first view. */
+export async function recordPageView(inv: Invoice): Promise<boolean> {
+  const rows = await query(
+    `INSERT INTO events (user_id, invoice_id, type, source)
+     SELECT $1, $2, 'page_viewed', 'client'
+     WHERE NOT EXISTS (SELECT 1 FROM events WHERE invoice_id = $2 AND type = 'page_viewed')
+     RETURNING id`,
+    [inv.user_id, inv.id],
+  );
+  if (!rows.length) return false;
+  await query(`UPDATE invoices SET status = 'viewed', updated_at = now() WHERE id = $1 AND status = 'sent'`, [inv.id]);
+  return true;
+}
+
+export async function recordClientPromise(inv: Invoice, promiseDate: string): Promise<void> {
+  await query(
+    `UPDATE invoices SET promise_date = $2, status = 'promised', updated_at = now() WHERE id = $1`,
+    [inv.id, promiseDate],
+  );
+  await logEvent(inv.user_id, inv.id, 'promise_made', 'client', { promise_date: promiseDate });
+}
+
+export async function recordClientIssue(inv: Invoice, message: string): Promise<void> {
+  await query(`UPDATE invoices SET status = 'disputed', updated_at = now() WHERE id = $1`, [inv.id]);
+  await logEvent(inv.user_id, inv.id, 'issue_raised', 'client', { message });
+}

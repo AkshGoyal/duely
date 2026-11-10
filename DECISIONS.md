@@ -21,3 +21,13 @@ Simplest-reasonable calls made where the spec was ambiguous.
 17. **`save_nudge` appends the pay link** unless the message already contains it, and returns soft warnings (WhatsApp over 80 words, missing amount, missing phone/email) rather than rejecting.
 18. **`ping` removed**: the connector exposes exactly the 7 spec tools.
 19. **Zod validation messages** are written for Claude ("Due date must be a real calendar date in YYYY-MM-DD…"); the SDK returns them as tool errors so Claude can fix and retry.
+20. **Client "I've paid" marks the invoice paid** (source `client`, full amount, their UTR as reference). v1 has no "claimed" status; the timeline shows "Client reported payment" so the owner can reopen it via the status override. The `mark_paid` tool description tells Claude this.
+21. **`page_viewed` is logged once per invoice** (first client view only) and moves `sent → viewed`. The owner previewing their own pay link while logged in is not counted.
+22. **Client promise dates** must be between today and 90 days out. A promise moves the invoice to `promised`; an issue moves it to `disputed`.
+23. **Rate limits** are in-memory, per IP: 10 pay-page POSTs per 10 min, 20 login attempts per 10 min. Fine for one instance.
+24. **CSRF**: owner forms rely on `SameSite=Lax` session cookies (cross-site POSTs carry no session). No token library added.
+25. **HTML escaping**: a small tagged-template helper (`src/web/html.ts`) escapes every interpolated value by default; only trusted markup is passed through `raw()`.
+26. **`SESSION_SECRET` falls back to a random value** with a warning, so a missing variable can't take the site down. The cost is logging everyone out on each deploy.
+27. **Pay page sends `Referrer-Policy: no-referrer` and `Cache-Control: no-store`** so the token doesn't leak through Referer headers or shared caches.
+28. **Web form edits** always post a status; if only the promise date changed, the status is left to the service so the invoice still moves to `promised`.
+29. **Nav shows only built pages**: Connect and Metrics links arrive with Gate 4.

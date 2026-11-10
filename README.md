@@ -8,7 +8,7 @@ Duely has no model inside. The customer connects their own Claude over MCP; Clau
 
 - [x] Gate 1: skeleton live (`/health`, MCP endpoint with a `ping` tool)
 - [x] Gate 2: Postgres + 7 invoice tools
-- [ ] Gate 3: login, dashboard, editor, pay page
+- [x] Gate 3: login, dashboard, editor, pay page
 - [ ] Gate 4: `/metrics`, `/connect`, seed
 - [ ] Gate 5: QA + `DEMO.md`
 
@@ -76,7 +76,7 @@ In the Inspector UI: **Transport type** = Streamable HTTP, **URL** = your connec
 | `DATABASE_URL` | Gate 2 | Railway: add a Postgres service, then reference `${{Postgres.DATABASE_URL}}` |
 | `PUBLIC_BASE_URL` | Gate 2 | `https://<your-domain>` (used to build pay/edit links; falls back to Railway's `RAILWAY_PUBLIC_DOMAIN`) |
 | `DEMO_MCP_TOKEN` | Gate 2, optional | Fixes the demo user's connector token when the user is first created (21+ URL-safe chars). Otherwise a random one is generated; read it with `npm run connect-url`. |
-| `SESSION_SECRET` | Gate 3 | Long random string, e.g. `openssl rand -hex 32` |
+| `SESSION_SECRET` | Gate 3 | Long random string, e.g. `openssl rand -hex 32`. If unset, a random one is used and everyone is logged out on each deploy. |
 
 ## MCP tools
 
@@ -89,6 +89,16 @@ In the Inspector UI: **Transport type** = Streamable HTTP, **URL** = your connec
 | `save_nudge` | Stores a reminder Claude wrote; returns `wa.me` and `mailto:` links |
 | `mark_paid` | Records payment (amount, UTR/reference) |
 | `get_receivables_summary` | Totals, aging buckets, promises, disputes, rule-sorted priority list |
+
+## Web pages
+
+| Route | Who | What |
+| --- | --- | --- |
+| `/login`, `/logout` | Owner | Cookie session (signed, httpOnly, SameSite=Lax) |
+| `/` | Owner | KPI tiles, aging bar, invoice table with status filters |
+| `/invoices/new` | Owner | Manual creation (works without Claude) |
+| `/invoices/:id` | Owner | Edit all fields + line items, status override, mark paid, pay link, nudges, timeline |
+| `/pay/:token` | Client, public | Amount, days overdue, UPI QR + deep link, "I've paid" / "I'll pay by" / "There's an issue" |
 
 ## Demo login
 
