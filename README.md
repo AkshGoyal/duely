@@ -7,28 +7,36 @@ Duely has no model inside. The customer connects their own Claude over MCP; Clau
 ## Status
 
 - [x] Gate 1: skeleton live (`/health`, MCP endpoint with a `ping` tool)
-- [ ] Gate 2: Postgres + 7 invoice tools
+- [x] Gate 2: Postgres + 7 invoice tools
 - [ ] Gate 3: login, dashboard, editor, pay page
 - [ ] Gate 4: `/metrics`, `/connect`, seed
 - [ ] Gate 5: QA + `DEMO.md`
 
 ## Run locally
 
-Requires Node 20.
+Requires Node 20 and a Postgres database.
 
 ```bash
 npm install
-npm run dev            # http://localhost:3000
+DATABASE_URL=postgres://localhost:5432/duely npm run dev   # http://localhost:3000
+```
+
+Migrations in `db/migrations` run on every boot (idempotent). The demo user is created on first boot.
+
+Print the demo user's connector URL (contains a secret, so run it in a trusted shell only):
+
+```bash
+npm run connect-url:dev
 ```
 
 ```bash
 curl -s localhost:3000/health
 ```
 
-List tools over MCP (any 21+ char URL-safe token works until Gate 2):
+List tools over MCP (use your connector URL):
 
 ```bash
-curl -s -X POST localhost:3000/mcp/gate1-test-token-abcdefghij \
+curl -s -X POST localhost:3000/mcp/<your-mcp-token> \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
@@ -58,7 +66,7 @@ railway domain
 npx @modelcontextprotocol/inspector
 ```
 
-In the Inspector UI: **Transport type** = Streamable HTTP, **URL** = `https://<your-domain>/mcp/gate1-test-token-abcdefghij`, **Connect** → **Tools → List Tools** → you should see `ping`; run it and get `pong`.
+In the Inspector UI: **Transport type** = Streamable HTTP, **URL** = your connector URL, **Connect** → **Tools → List Tools** → you should see the 7 Duely tools.
 
 ### Env vars (all gates)
 
@@ -66,8 +74,21 @@ In the Inspector UI: **Transport type** = Streamable HTTP, **URL** = `https://<y
 | --- | --- | --- |
 | `PORT` | Gate 1 | Set by Railway automatically |
 | `DATABASE_URL` | Gate 2 | Railway: add a Postgres service, then reference `${{Postgres.DATABASE_URL}}` |
-| `PUBLIC_BASE_URL` | Gate 2 | `https://<your-domain>` (used to build pay/edit links) |
+| `PUBLIC_BASE_URL` | Gate 2 | `https://<your-domain>` (used to build pay/edit links; falls back to Railway's `RAILWAY_PUBLIC_DOMAIN`) |
+| `DEMO_MCP_TOKEN` | Gate 2, optional | Fixes the demo user's connector token when the user is first created (21+ URL-safe chars). Otherwise a random one is generated; read it with `npm run connect-url`. |
 | `SESSION_SECRET` | Gate 3 | Long random string, e.g. `openssl rand -hex 32` |
+
+## MCP tools
+
+| Tool | What it does |
+| --- | --- |
+| `create_invoice` | Records money owed; returns a live pay link and edit link |
+| `list_invoices` | Invoices with days overdue, promises, last client action, nudges sent |
+| `get_invoice` | One invoice with full event timeline and past nudges |
+| `update_invoice` | Edits any field; records promises; logs `invoice_edited` |
+| `save_nudge` | Stores a reminder Claude wrote; returns `wa.me` and `mailto:` links |
+| `mark_paid` | Records payment (amount, UTR/reference) |
+| `get_receivables_summary` | Totals, aging buckets, promises, disputes, rule-sorted priority list |
 
 ## Demo login
 

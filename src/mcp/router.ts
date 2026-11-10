@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { buildMcpServer } from './server';
+import { findUserByMcpToken } from '../services/users';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{21,64}$/;
 
@@ -35,12 +36,19 @@ mcpRouter.post('/mcp/:token', async (req: Request, res: Response) => {
     return;
   }
 
-  const server = buildMcpServer({ token });
+  let server;
   try {
+    const user = await findUserByMcpToken(token);
+    if (!user) {
+      rpcError(res, 404, -32001, 'Unknown Duely connector URL. Copy your URL again from the Connect page.');
+      return;
+    }
+    server = buildMcpServer(user);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    const s = server;
     res.on('close', () => {
       transport.close();
-      server.close();
+      s.close();
     });
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
