@@ -7,12 +7,13 @@ import { Pool, types, PoolClient } from 'pg';
 types.setTypeParser(1082, (v: string) => v);
 types.setTypeParser(20, (v: string) => Number(v));
 
-if (!process.env.DATABASE_URL) {
-  console.error('DATABASE_URL is not set. Add a Postgres database and set DATABASE_URL.');
-  process.exit(1);
-}
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10 });
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 10,
+  connectionTimeoutMillis: 10_000,
+});
+pool.on('error', (e) => console.error('Postgres pool error:', e.message));
 
 export async function query<T = any>(text: string, params: unknown[] = []): Promise<T[]> {
   const res = await pool.query(text, params);
@@ -39,6 +40,7 @@ export async function tx<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
 }
 
 export async function migrate(): Promise<void> {
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set on this service');
   const dir = path.join(process.cwd(), 'db', 'migrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
   for (const f of files) {
