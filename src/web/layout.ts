@@ -45,9 +45,36 @@ const GLOBAL_JS = html`<script>
   document.addEventListener('submit', (e) => {
     const f = e.target;
     if (f.dataset.confirm && !confirm(f.dataset.confirm)) { e.preventDefault(); return; }
+    f.dataset.submitting = '1';
     f.querySelectorAll('button[type=submit], button:not([type])').forEach((b) => {
-      b.disabled = true; b.classList.add('opacity-60'); if (b.dataset.loading) b.textContent = b.dataset.loading;
+      b.dataset.busy = b.innerHTML; b.disabled = true; b.classList.add('opacity-60'); if (b.dataset.loading) b.textContent = b.dataset.loading;
     });
+  });
+  // Coming back with the browser's Back button restores a frozen page: re-enable its buttons.
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    document.querySelectorAll('button[data-busy]').forEach((b) => {
+      b.innerHTML = b.dataset.busy; b.disabled = false; b.classList.remove('opacity-60'); delete b.dataset.busy;
+    });
+    document.querySelectorAll('form[data-submitting]').forEach((f) => delete f.dataset.submitting);
+  });
+  // Forms marked data-track-changes show "Unsaved changes", offer Discard, and warn before leaving.
+  document.querySelectorAll('form[data-track-changes]').forEach((f) => {
+    const msg = f.querySelector('[data-dirty-msg]');
+    const discard = f.querySelector('[data-discard]');
+    let dirty = false;
+    const mark = () => {
+      if (dirty) return;
+      dirty = true;
+      msg.textContent = 'Unsaved changes';
+      msg.className = 'text-sm font-medium text-amber-700';
+      discard.classList.remove('hidden');
+    };
+    f.addEventListener('input', mark);
+    f.addEventListener('change', mark);
+    f.addEventListener('click', (e) => { if (e.target.closest('#li-add, .li-remove, #li-use-total')) mark(); });
+    discard.addEventListener('click', () => { dirty = false; location.reload(); });
+    window.addEventListener('beforeunload', (e) => { if (dirty && !f.dataset.submitting) { e.preventDefault(); e.returnValue = ''; } });
   });
 </script>`;
 

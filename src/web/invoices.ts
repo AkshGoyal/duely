@@ -76,10 +76,24 @@ invoicesRouter.get('/invoices/:id', async (req, res, next) => {
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-6">
-        <form method="post" action="/invoices/${inv.id}" class="bg-white rounded-2xl border border-slate-200 shadow-card p-5 sm:p-6">
-          <h2 class="text-sm font-semibold mb-4">Details</h2>
-          ${invoiceFormFields(inv, 'edit')}
-          <div class="mt-6"><button class="${btnPrimary}" type="submit" data-loading="Saving…">Save changes</button></div>
+        <form method="post" action="/invoices/${inv.id}" data-track-changes class="bg-white rounded-2xl border border-slate-200 shadow-card">
+          <div class="p-5 sm:p-6">
+            <div class="mb-5 flex items-start gap-3">
+              <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">${icon('pencil')}</span>
+              <div>
+                <h2 class="text-sm font-semibold">Edit invoice</h2>
+                <p class="text-xs text-slate-500">${inv.source === 'claude' ? 'Claude created this. Change any field, then save.' : 'Change any field, then save.'}</p>
+              </div>
+            </div>
+            ${invoiceFormFields(inv, 'edit')}
+          </div>
+          <div class="sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-b-2xl border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur sm:px-6">
+            <span data-dirty-msg class="text-sm text-slate-400">No unsaved changes</span>
+            <div class="flex gap-2">
+              <button type="button" data-discard class="${btnSecondary} hidden">Discard</button>
+              <button class="${btnPrimary}" type="submit" data-loading="Saving…">${icon('check')} Save changes</button>
+            </div>
+          </div>
         </form>
 
         <section class="bg-white rounded-2xl border border-slate-200 shadow-card p-5 sm:p-6">
@@ -131,7 +145,7 @@ invoicesRouter.get('/invoices/:id', async (req, res, next) => {
             <summary class="list-none flex min-h-[52px] items-center justify-between px-5 text-sm font-semibold hover:bg-slate-50 rounded-2xl">Mark as paid ${icon('chevronDown', 'h-4 w-4 text-slate-400 transition-transform group-open:rotate-180')}</summary>
             <form method="post" action="/invoices/${inv.id}/paid" data-confirm="Mark this invoice as paid?" class="px-5 pb-5 space-y-3">
               <div><label class="${labelCls}" for="paid_amount">Amount received (₹)</label>
-                <input class="${inputCls} num" id="paid_amount" name="amount" type="number" step="0.01" min="0.01" value="${toRupees(inv.amount_paise)}" required /></div>
+                <input class="${inputCls} num" id="paid_amount" name="amount" type="text" inputmode="decimal" autocomplete="off" required value="${toRupees(inv.amount_paise)}" required /></div>
               <div><label class="${labelCls}" for="paid_ref">UTR / reference</label>
                 <input class="${inputCls}" id="paid_ref" name="reference" maxlength="100" placeholder="Optional" /></div>
               <button class="${btnPrimary} w-full" type="submit" data-loading="Saving…">${icon('check')} Mark as paid</button>
@@ -182,7 +196,7 @@ invoicesRouter.post('/invoices/:id/paid', async (req, res, next) => {
   const user = req.user!;
   const cur = await getInvoice(user.id, idParam(req.params.id));
   if (!cur) return next();
-  const amount = Number(String(req.body?.amount ?? '').replace(/,/g, ''));
+  const amount = Number(String(req.body?.amount ?? '').replace(/[₹,\s]/g, ''));
   try {
     const inv = await markPaid(
       user.id,

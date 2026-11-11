@@ -25,7 +25,7 @@ export function parseInvoiceForm(body: Record<string, unknown>, mode: 'new' | 'e
   const s = (k: string) => String(body[k] ?? '').trim();
   const client_name = s('client_name');
   if (!client_name) return { error: 'Client name is required.' };
-  const amount = Number(s('amount').replace(/,/g, ''));
+  const amount = Number(s('amount').replace(/[₹,\s]/g, ''));
   if (!Number.isFinite(amount) || amount <= 0) return { error: 'Amount must be a number greater than 0.' };
   if (amount > 1e10) return { error: 'Amount is too large (max ₹1,000 crore).' };
   const due_date = s('due_date');
@@ -46,7 +46,7 @@ export function parseInvoiceForm(body: Record<string, unknown>, mode: 'new' | 'e
     const d = (descs[i] ?? '').trim();
     const a = (amts[i] ?? '').trim();
     if (!d && !a) continue;
-    const n = Number(a.replace(/,/g, ''));
+    const n = Number(a.replace(/[₹,\s]/g, ''));
     if (!d || !Number.isFinite(n) || n <= 0 || n > 1e10) return { error: `Line item ${i + 1} needs a description and an amount greater than 0.` };
     line_items.push({ description: d.slice(0, 300), amount_paise: toPaise(n) });
   }
@@ -70,7 +70,7 @@ export function parseInvoiceForm(body: Record<string, unknown>, mode: 'new' | 'e
 const lineRow = (li?: { description: string; amount: number | string }) => html`
   <div class="li-row flex gap-2">
     <input class="${inputCls}" name="li_desc" placeholder="Description" value="${li?.description ?? ''}" maxlength="300" />
-    <input class="${inputCls} w-36 text-right num" name="li_amount" type="number" step="0.01" min="0" placeholder="₹" value="${li?.amount ?? ''}" />
+    <input class="${inputCls} w-36 text-right num" name="li_amount" type="text" inputmode="decimal" autocomplete="off" placeholder="₹" value="${li?.amount ?? ''}" />
     <button type="button" class="li-remove inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors" aria-label="Remove line">${icon('x')}</button>
   </div>`;
 
@@ -84,7 +84,7 @@ export function invoiceFormFields(v: FormValues, mode: 'new' | 'edit') {
     ${field('client_name', 'Client name *', html`<input class="${inputCls}" id="client_name" name="client_name" required maxlength="200" value="${v.client_name ?? ''}" />`, 'sm:col-span-2')}
     ${field('client_phone', 'Client WhatsApp', html`<input class="${inputCls}" id="client_phone" name="client_phone" type="tel" placeholder="+91 98765 43210" value="${v.client_phone ?? ''}" />`)}
     ${field('client_email', 'Client email', html`<input class="${inputCls}" id="client_email" name="client_email" type="email" value="${v.client_email ?? ''}" />`)}
-    ${field('amount', 'Amount (₹) *', html`<input class="${inputCls} num" id="amount" name="amount" type="number" step="0.01" min="0.01" required value="${v.amount_paise ? toRupees(v.amount_paise) : ''}" />`)}
+    ${field('amount', 'Amount (₹) *', html`<input class="${inputCls} num" id="amount" name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 85000" required value="${v.amount_paise ? toRupees(v.amount_paise) : ''}" />`)}
     ${field('invoice_number', 'Invoice number', html`<input class="${inputCls}" id="invoice_number" name="invoice_number" maxlength="50" placeholder="${mode === 'new' ? 'Auto (INV-001…)' : ''}" value="${v.invoice_number ?? ''}" ${mode === 'edit' ? 'required' : ''} />`)}
     ${field('issue_date', 'Issue date', html`<input class="${inputCls}" id="issue_date" name="issue_date" type="date" value="${v.issue_date ?? ''}" />`)}
     ${field('due_date', 'Due date *', html`<input class="${inputCls}" id="due_date" name="due_date" type="date" required value="${v.due_date ?? ''}" />`)}
@@ -118,7 +118,7 @@ export function invoiceFormFields(v: FormValues, mode: 'new' | 'edit') {
       const tpl = document.getElementById('li-template');
       const total = document.getElementById('li-total');
       const fmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
-      const sum = () => [...list.querySelectorAll('input[name=li_amount]')].reduce((s, i) => s + (parseFloat(i.value) || 0), 0);
+      const sum = () => [...list.querySelectorAll('input[name=li_amount]')].reduce((s, i) => s + (parseFloat(i.value.replace(/[₹,\\s]/g, '')) || 0), 0);
       const update = () => (total.textContent = fmt.format(sum()));
       document.getElementById('li-add').onclick = () => { list.appendChild(tpl.content.cloneNode(true)); update(); };
       document.getElementById('li-use-total').onclick = () => { const t = sum(); if (t > 0) document.getElementById('amount').value = t.toFixed(2).replace(/\\.00$/, ''); };
