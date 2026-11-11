@@ -25,9 +25,16 @@ export const findUserByEmail = (email: string) =>
  * Makes sure the demo account exists so the connector works before the seed script runs.
  * DEMO_MCP_TOKEN (optional) fixes its connector token at creation time; otherwise a random one is made.
  */
+/** Deliberately invalid UPI handle: no bank uses "@notarealbank", so a reviewer scanning the QR can't pay a real person. */
+export const DEMO_UPI_ID = 'demo.only@notarealbank';
+
 export async function ensureDemoUser(): Promise<User> {
   const existing = await findUserByEmail(DEMO_EMAIL);
-  if (existing) return existing;
+  if (existing) {
+    if (existing.upi_id === DEMO_UPI_ID) return existing;
+    await query('UPDATE users SET upi_id = $2 WHERE id = $1', [existing.id, DEMO_UPI_ID]);
+    return { ...existing, upi_id: DEMO_UPI_ID };
+  }
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
   const token = process.env.DEMO_MCP_TOKEN || newMcpToken();
   const [u] = await query<User>(
@@ -35,7 +42,7 @@ export async function ensureDemoUser(): Promise<User> {
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
      RETURNING *`,
-    [DEMO_EMAIL, hash, 'Pixel & Pine Studio', 'pixelandpine@okhdfcbank', token],
+    [DEMO_EMAIL, hash, 'Pixel & Pine Studio', DEMO_UPI_ID, token],
   );
   console.log('Demo user ready: ' + DEMO_EMAIL);
   return u;
