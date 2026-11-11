@@ -5,3 +5,4 @@ dist
 # Kickoff brief stays local: it quotes the no-AI grep pattern, which would make the grep match itself.
 CLAUDE.md
 .claude
+submission/
