@@ -16,107 +16,114 @@ function hours(h: number | null): string {
   return `${(h / 24).toFixed(1)} days`;
 }
 
-const bar = (value: number, tone = 'bg-brand-600') =>
-  html`<div class="mt-3 h-1.5 w-full rounded-full bg-slate-100" aria-hidden="true"><div class="h-1.5 rounded-full ${tone}" style="width:${Math.min(100, Math.round(value * 100))}%"></div></div>`;
-
 export const metricsRouter = Router();
 
 metricsRouter.get('/metrics', requireAuth, async (req, res) => {
   const m = await productMetrics();
+  const claudeTotal = m.sources.claude + m.sources.web;
+
+  // Each tile answers one question. The definition lives behind the info toggle, not on the card.
   const tiles = [
     {
+      q: 'Do new users get to value?',
       label: 'Activation',
       value: pct(m.activation.activated, m.activation.users),
-      sub: `${m.activation.activated} of ${m.activation.users} account(s)`,
-      def: 'Connected Claude (first MCP tool call) AND first invoice created by Claude within 24h of signup.',
+      ctx: `${m.activation.activated} of ${m.activation.users} accounts`,
       r: ratio(m.activation.activated, m.activation.users),
+      def: 'Connected Claude and created a first invoice from Claude within 24 hours of signup.',
     },
     {
+      q: 'How fast is the first pay link?',
       label: 'Time to first link',
       value: hours(m.ttfl.median_h),
-      sub: `median · avg ${hours(m.ttfl.avg_h)} · ${m.ttfl.n} account(s)`,
-      def: 'Signup → first invoice (any source). Every invoice has a live pay link from creation.',
+      ctx: 'median, signup to first invoice',
+      def: `Median time from signup to first invoice (any source). Average ${hours(m.ttfl.avg_h)} over ${m.ttfl.n} accounts.`,
     },
     {
-      label: 'Client response rate',
+      q: 'Do clients react to the link?',
+      label: 'Client response',
       value: pct(m.response.responded, m.response.links),
-      sub: `${m.response.responded} of ${m.response.links} links · ${pct(m.response.viewed, m.response.links)} opened`,
-      def: 'Share of pay links (non-draft invoices) where the client tapped I’ve paid, I’ll pay by, or There’s an issue.',
+      ctx: `${m.response.responded} of ${m.response.links} links · ${pct(m.response.viewed, m.response.links)} opened`,
       r: ratio(m.response.responded, m.response.links),
+      def: 'Sent pay links where the client tapped I’ve paid, I’ll pay by, or There’s an issue.',
     },
     {
-      label: 'Promise-kept rate',
+      q: 'Are promises worth anything?',
+      label: 'Promises kept',
       value: pct(m.promises.kept, m.promises.resolved),
-      sub: `${m.promises.kept} of ${m.promises.resolved} resolved · ${m.promises.pending} pending`,
-      def: 'Of promises that are due or settled, the share paid on or before the promised date.',
+      ctx: `${m.promises.kept} of ${m.promises.resolved} · ${m.promises.pending} pending`,
       r: ratio(m.promises.kept, m.promises.resolved),
-      tone: 'bg-amber-500',
+      def: 'Promises that are due or settled, paid on or before the promised date.',
     },
     {
-      label: 'Due date → paid',
+      q: 'How late is money arriving?',
+      label: 'Due date to paid',
       value: m.dso.avg_days === null ? '—' : `${m.dso.avg_days.toFixed(1)} days`,
-      sub: `average over ${m.dso.n} paid invoice(s)`,
-      def: 'Average days between due date and payment (negative = paid early). Lower is better.',
+      ctx: `average of ${m.dso.n} paid`,
+      def: 'Average days from due date to payment. Negative means paid early. Lower is better.',
     },
     {
+      q: 'Does Claude get it right first time?',
       label: 'Edit rate',
       value: pct(m.edits.edited, m.edits.claude_total),
-      sub: `${m.edits.edited} of ${m.edits.claude_total} Claude-created invoices`,
-      def: 'Claude-created invoices edited afterwards. A proxy for tool quality: lower means Claude got it right first time.',
+      ctx: `${m.edits.edited} of ${m.edits.claude_total} Claude invoices`,
       r: ratio(m.edits.edited, m.edits.claude_total),
-      tone: 'bg-slate-400',
+      def: 'Claude-created invoices a person edited afterwards. Lower means the tool descriptions work.',
     },
   ];
-  const total = m.sources.claude + m.sources.web;
+
+  const bar = (r: number) =>
+    html`<div class="mt-4 h-1 w-full rounded-full bg-slate-100" aria-hidden="true"><div class="h-1 rounded-full bg-slate-900" style="width:${Math.min(100, Math.round(r * 100))}%"></div></div>`;
 
   const body = html`
-    ${pageHeader('Metrics', 'Computed live from the event log across all accounts. Definitions under each number.')}
+    ${pageHeader('Metrics', 'Live from the event log, all accounts')}
 
-    ${card(
-      html`<div class="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-5">
-        <span class="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-white">${icon('rupee', 'h-6 w-6')}</span>
-        <div class="flex-1">
-          <p class="text-xs font-semibold uppercase tracking-wide text-brand-700">North star</p>
-          <p class="text-sm text-slate-600">₹ collected through Duely links within 30 days of the due date</p>
-          <p class="mt-1 text-3xl sm:text-4xl font-bold tracking-tight num text-slate-900">${formatINR(m.northStar.paise)}</p>
-          <p class="mt-1 text-xs text-slate-500">${m.northStar.count} invoice(s). “Through Duely” = paid invoices whose link the client acted on or that got a nudge. All collections: ${formatINR(m.northStar.all_paise)}.</p>
-        </div>
-      </div>`,
-      'mb-6 border-brand-200',
-    )}
+    <section class="mb-6 rounded-2xl bg-slate-900 text-white p-6 sm:p-8" aria-labelledby="ns">
+      <p id="ns" class="text-sm text-slate-300">North star · collected through Duely links within 30 days of due date</p>
+      <p class="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight num">${formatINR(m.northStar.paise)}</p>
+      <p class="mt-2 text-sm text-slate-400"><span class="num">${m.northStar.count}</span> invoice${m.northStar.count === 1 ? '' : 's'} · <span class="num">${formatINR(m.northStar.all_paise)}</span> collected in total</p>
+    </section>
 
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start gap-4 mb-6">
       ${tiles.map((t) =>
-        card(html`<div class="p-5">
-          <p class="text-sm font-medium text-slate-500">${t.label}</p>
-          <p class="mt-1 text-2xl font-semibold tracking-tight num text-slate-900">${t.value}</p>
-          <p class="text-xs text-slate-500">${t.sub}</p>
-          ${t.r !== undefined ? bar(t.r, t.tone) : ''}
-          <p class="mt-3 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">${t.def}</p>
-        </div>`),
+        card(html`<details class="group h-full p-5">
+          <summary class="list-none">
+            <div class="flex items-start justify-between gap-3">
+              <p class="text-sm text-slate-500">${t.label}</p>
+              <span class="-m-1 rounded-md p-1 text-slate-300 transition-colors group-open:text-slate-700 hover:text-slate-600" aria-label="How ${t.label} is measured">${icon('info', 'h-4 w-4')}</span>
+            </div>
+            <p class="mt-1 text-3xl font-semibold tracking-tight num text-slate-900">${t.value}</p>
+            <p class="mt-0.5 text-xs text-slate-400">${t.ctx}</p>
+            ${t.r !== undefined ? bar(t.r) : ''}
+          </summary>
+          <p class="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-600"><span class="font-medium text-slate-800">${t.q}</span> ${t.def}</p>
+        </details>`),
       )}
     </section>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      ${card(html`<div class="p-5">
-        <h2 class="text-sm font-semibold text-slate-900">Invoices created: Claude vs web</h2>
-        <div class="mt-4 flex h-3 w-full overflow-hidden rounded-full bg-slate-100" role="img" aria-label="Claude ${m.sources.claude}, web ${m.sources.web}">
-          ${total ? html`<div class="bg-orange-400" style="width:${((m.sources.claude / total) * 100).toFixed(1)}%"></div><div class="bg-slate-300 flex-1"></div>` : ''}
+    ${card(html`<div class="grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-y lg:divide-y-0 divide-slate-100">
+      <div class="p-5">
+        <div class="flex items-baseline justify-between">
+          <h2 class="text-sm text-slate-500">Invoices created</h2>
+          <p class="text-xs text-slate-400"><span class="num font-medium text-slate-800">${pct(m.sources.claude, claudeTotal)}</span> via Claude</p>
         </div>
-        <dl class="mt-3 flex gap-6 text-sm">
-          <div class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-sm bg-orange-400"></span><dt class="text-slate-500">Via Claude</dt><dd class="font-semibold num">${m.sources.claude} <span class="font-normal text-slate-400">(${pct(m.sources.claude, total)})</span></dd></div>
-          <div class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-sm bg-slate-300"></span><dt class="text-slate-500">Web</dt><dd class="font-semibold num">${m.sources.web}</dd></div>
+        <div class="mt-4 flex h-2 w-full overflow-hidden rounded-full bg-slate-100" role="img" aria-label="Claude ${m.sources.claude}, web ${m.sources.web}">
+          ${claudeTotal ? html`<div class="bg-orange-400" style="width:${((m.sources.claude / claudeTotal) * 100).toFixed(1)}%"></div>` : ''}
+        </div>
+        <dl class="mt-3 flex gap-5 text-xs text-slate-500">
+          <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm bg-orange-400"></span><dt>Claude</dt><dd class="num font-medium text-slate-800">${m.sources.claude}</dd></div>
+          <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm bg-slate-200"></span><dt>Web</dt><dd class="num font-medium text-slate-800">${m.sources.web}</dd></div>
         </dl>
-      </div>`)}
-      ${card(html`<div class="p-5">
-        <h2 class="text-sm font-semibold text-slate-900">Last 30 days</h2>
-        <dl class="mt-4 grid grid-cols-3 gap-4 text-center">
-          <div><dd class="text-2xl font-semibold num">${m.activity.nudges}</dd><dt class="text-xs text-slate-500">Nudges written by Claude</dt></div>
-          <div><dd class="text-2xl font-semibold num">${m.activity.views}</dd><dt class="text-xs text-slate-500">Pay links opened</dt></div>
-          <div><dd class="text-2xl font-semibold num">${m.activity.summaries}</dd><dt class="text-xs text-slate-500">“Who owes me?” briefings</dt></div>
+      </div>
+      <div class="p-5">
+        <h2 class="text-sm text-slate-500">Last 30 days</h2>
+        <dl class="mt-3 grid grid-cols-3 gap-4">
+          <div><dd class="text-2xl font-semibold num">${m.activity.nudges}</dd><dt class="text-xs text-slate-400">nudges drafted</dt></div>
+          <div><dd class="text-2xl font-semibold num">${m.activity.views}</dd><dt class="text-xs text-slate-400">links opened</dt></div>
+          <div><dd class="text-2xl font-semibold num">${m.activity.summaries}</dd><dt class="text-xs text-slate-400">daily briefings</dt></div>
         </dl>
-      </div>`)}
-    </div>`;
+      </div>
+    </div>`)}`;
 
   res.send(String(appPage({ title: 'Metrics', active: 'metrics', business: req.user!.business_name, flash: takeFlash(req), body })));
 });

@@ -25,7 +25,6 @@ invoicesRouter.get('/invoices/new', (req, res) => {
     <div class="max-w-3xl">
       <a href="/" class="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900">${icon('arrowLeft')} Invoices</a>
       <h1 class="text-2xl font-semibold tracking-tight mt-2">New invoice</h1>
-      <p class="text-sm text-slate-500 mt-1">Usually Claude creates these for you. This form works the same without it.</p>
       <form method="post" action="/invoices" class="mt-6 bg-white rounded-2xl border border-slate-200 shadow-card p-5 sm:p-6">
         ${invoiceFormFields({ status: 'sent', issue_date: todayIST() }, 'new')}
         <div class="mt-6 flex gap-3"><button class="${btnPrimary}" type="submit" data-loading="Creating…">Create invoice</button><a href="/" class="${btnSecondary}">Cancel</a></div>
@@ -78,7 +77,7 @@ invoicesRouter.get('/invoices/:id', async (req, res, next) => {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-6">
         <form method="post" action="/invoices/${inv.id}" class="bg-white rounded-2xl border border-slate-200 shadow-card p-5 sm:p-6">
-          <h2 class="text-sm font-semibold mb-4">Invoice details</h2>
+          <h2 class="text-sm font-semibold mb-4">Details</h2>
           ${invoiceFormFields(inv, 'edit')}
           <div class="mt-6"><button class="${btnPrimary}" type="submit" data-loading="Saving…">Save changes</button></div>
         </form>
@@ -89,18 +88,15 @@ invoicesRouter.get('/invoices/:id', async (req, res, next) => {
             ? html`<ul class="space-y-4">${nudges.map((n) => {
                 const l = nudgeLinks(inv, n.message);
                 return html`<li class="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                  <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-2">
-                    <span class="font-medium text-slate-700">${n.channel === 'whatsapp' ? 'WhatsApp' : 'Email'}</span>
-                    <span>· ${n.tone}</span><span>· ${formatDateTime(n.created_at)}</span>
-                  </div>
+                  <p class="text-xs text-slate-500 mb-2"><span class="font-medium text-slate-700">${n.channel === 'whatsapp' ? 'WhatsApp' : 'Email'}</span> · ${n.tone} · ${formatDateTime(n.created_at)}</p>
                   <p class="text-sm whitespace-pre-line text-slate-800">${n.message}</p>
                   <div class="mt-3 flex flex-wrap gap-2">
-                    <a href="${l.whatsapp_url}" target="_blank" rel="noopener" class="${btnSecondary}">${icon('message')} Send on WhatsApp</a>
-                    <a href="${l.mailto_url}" class="${btnSecondary}">${icon('mail')} Send by email</a>
+                    <a href="${l.whatsapp_url}" target="_blank" rel="noopener" class="${btnSecondary}">${icon('message')} WhatsApp</a>
+                    <a href="${l.mailto_url}" class="${btnSecondary}">${icon('mail')} Email</a>
                   </div>
                 </li>`;
               })}</ul>`
-            : html`<p class="text-sm text-slate-500 rounded-xl border border-dashed border-slate-300 px-4 py-5 text-center">No nudges yet. Ask your Claude: “Draft a friendly WhatsApp reminder for ${inv.invoice_number}.”</p>`}
+            : html`<p class="text-sm text-slate-500 rounded-xl border border-dashed border-slate-300 px-4 py-5 text-center">None yet. Ask Claude: “Draft a WhatsApp reminder for ${inv.invoice_number}.”</p>`}
         </section>
       </div>
 
@@ -119,27 +115,27 @@ invoicesRouter.get('/invoices/:id', async (req, res, next) => {
                 ${inv.paid_reference ? html`<div class="flex justify-between"><dt class="text-slate-500">Reference</dt><dd class="font-mono text-xs">${inv.paid_reference}</dd></div>` : ''}`
               : ''}
           </dl>
+          <div class="mt-5 border-t border-slate-100 pt-4">
+            <p class="text-xs text-slate-500 mb-2">Pay link for your client</p>
+            <div class="flex gap-2">
+              <button type="button" class="${btnSecondary} flex-1" data-copy="${link}">${icon('copy')}<span data-label>Copy link</span></button>
+              <a href="${link}" target="_blank" rel="noopener" class="${btnSecondary}" aria-label="Open pay page">${icon('external')}</a>
+            </div>
+          </div>
         </section>
 
-        <section class="bg-white rounded-2xl border border-slate-200 shadow-card p-5">
-          <h2 class="text-sm font-semibold mb-2">Pay link</h2>
-          <p class="text-xs text-slate-500 mb-3">Public page with UPI QR. Your client needs no login.</p>
-          <div class="flex gap-2">
-            <input readonly aria-label="Pay link" class="${inputCls} text-xs font-mono" value="${link}" onclick="this.select()" />
-            <button type="button" class="${btnSecondary} shrink-0" data-copy="${link}" aria-label="Copy pay link">${icon('copy')}<span data-label>Copy</span></button>
-          </div>
-          <a href="${link}" target="_blank" rel="noopener" class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline">Open pay page ${icon('external', 'h-3.5 w-3.5')}</a>
-        </section>
+
 
         ${inv.status !== 'paid' && inv.status !== 'cancelled'
-          ? html`<form method="post" action="/invoices/${inv.id}/paid" data-confirm="Mark this invoice as paid?" class="bg-white rounded-2xl border border-slate-200 shadow-card p-5 space-y-3">
-              <h2 class="text-sm font-semibold">Mark paid</h2>
+          ? html`<details class="group bg-white rounded-2xl border border-slate-200 shadow-card">
+            <summary class="list-none flex min-h-[52px] items-center justify-between px-5 text-sm font-semibold hover:bg-slate-50 rounded-2xl">Mark as paid ${icon('chevronDown', 'h-4 w-4 text-slate-400 transition-transform group-open:rotate-180')}</summary>
+            <form method="post" action="/invoices/${inv.id}/paid" data-confirm="Mark this invoice as paid?" class="px-5 pb-5 space-y-3">
               <div><label class="${labelCls}" for="paid_amount">Amount received (₹)</label>
                 <input class="${inputCls} num" id="paid_amount" name="amount" type="number" step="0.01" min="0.01" value="${toRupees(inv.amount_paise)}" required /></div>
               <div><label class="${labelCls}" for="paid_ref">UTR / reference</label>
                 <input class="${inputCls}" id="paid_ref" name="reference" maxlength="100" placeholder="Optional" /></div>
               <button class="${btnPrimary} w-full" type="submit" data-loading="Saving…">${icon('check')} Mark as paid</button>
-            </form>`
+            </form></details>`
           : ''}
 
         <section class="bg-white rounded-2xl border border-slate-200 shadow-card p-5">

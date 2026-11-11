@@ -9,9 +9,9 @@ import { appPage, card, pageHeader } from './layout';
 import { btnDanger, btnSecondary, formatDateTime, inputCls } from './ui';
 
 const STEPS = [
-  { t: 'Copy your connector URL', d: 'It is private to you. Anyone with it can manage your invoices, so treat it like a password.' },
-  { t: 'Add it to Claude', d: 'In claude.ai open Settings → Connectors → Add custom connector. Name it “Duely”, paste the URL, click Add.' },
-  { t: 'Turn it on in a chat', d: 'Start a new chat, open the tools menu under the message box and switch Duely on. Approve tool calls when Claude asks.' },
+  { t: 'Copy the URL above', d: 'Keep it private, like a password.' },
+  { t: 'Add it in claude.ai', d: 'Settings → Connectors → Add custom connector. Name it Duely.' },
+  { t: 'Switch it on in a chat', d: 'Tools menu under the message box → Duely.' },
 ];
 
 const PROMPTS = [
@@ -38,7 +38,7 @@ connectRouter.get('/connect', requireAuth, async (req, res) => {
   );
 
   const body = html`
-    ${pageHeader('Connect your Claude', 'Duely has no AI inside. Your own Claude does the thinking and writing through this connector.')}
+    ${pageHeader('Connect Claude', 'Your Claude writes and decides. Duely stores and keeps links live.')}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-6">
@@ -53,15 +53,11 @@ connectRouter.get('/connect', requireAuth, async (req, res) => {
             <input readonly aria-label="Connector URL" class="${inputCls} font-mono text-xs" value="${url}" onclick="this.select()" />
             <button type="button" class="${btnSecondary} shrink-0" data-copy="${url}">${icon('copy')}<span data-label>Copy URL</span></button>
           </div>
-          <p class="mt-3 text-xs text-slate-500">${
-            conn
-              ? html`First tool call ${formatDateTime(conn.created_at)}${last ? html` · last activity from Claude ${formatDateTime(last.created_at)}` : ''}.`
-              : 'Once Claude makes its first call, this shows as connected.'
-          }</p>
+          ${last ? html`<p class="mt-3 text-xs text-slate-400">Last used by Claude ${formatDateTime(last.created_at)}</p>` : ''}
         </div>`)}
 
         ${card(html`<div class="p-5 sm:p-6">
-          <h2 class="text-sm font-semibold text-slate-900 mb-4">Set up in claude.ai (about 2 minutes)</h2>
+          <h2 class="text-sm font-semibold text-slate-900 mb-4">Set up in 2 minutes</h2>
           <ol class="space-y-4">
             ${STEPS.map(
               (s, i) => html`<li class="flex gap-4">
@@ -73,8 +69,7 @@ connectRouter.get('/connect', requireAuth, async (req, res) => {
         </div>`)}
 
         ${card(html`<div class="p-5 sm:p-6">
-          <h2 class="text-sm font-semibold text-slate-900 mb-1">Try saying</h2>
-          <p class="text-xs text-slate-500 mb-4">Tap to copy, then paste into Claude.</p>
+          <h2 class="text-sm font-semibold text-slate-900 mb-4">Try saying <span class="font-normal text-slate-400">· tap to copy</span></h2>
           <ul class="space-y-2">
             ${PROMPTS.map(
               (p) => html`<li><button type="button" data-copy="${p}" class="group w-full text-left rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-800 transition-colors hover:border-brand-200 hover:bg-brand-50">
@@ -86,27 +81,15 @@ connectRouter.get('/connect', requireAuth, async (req, res) => {
       </div>
 
       <aside class="space-y-6">
-        ${card(html`<div class="p-5">
-          <h2 class="text-sm font-semibold text-slate-900">What Claude can do</h2>
-          <ul class="mt-3 space-y-2 text-sm text-slate-600">
-            ${[
-              'Create and edit invoices',
-              'Write reminders and give you a one-tap WhatsApp link',
-              'See who opened the link, promised a date or raised an issue',
-              'Mark invoices paid',
-              'Tell you who to chase today, in order',
-            ].map((t) => html`<li class="flex gap-2">${icon('check', 'h-4 w-4 mt-0.5 shrink-0 text-brand-600')}${t}</li>`)}
-          </ul>
-          <p class="mt-4 text-xs text-slate-500">Claude never sends messages by itself. You tap the link to send from your own WhatsApp or email.</p>
-        </div>`)}
+
 
         ${card(html`<form method="post" action="/connect/rotate" class="p-5" data-confirm="Rotate the connector URL? The current URL stops working immediately and you will need to add the new one in Claude.">
           <h2 class="text-sm font-semibold text-slate-900">Rotate URL</h2>
-          <p class="mt-1 text-sm text-slate-600">If the URL leaked, issue a new one. The old one stops working at once.</p>
+          <p class="mt-1 text-sm text-slate-500">Leaked? Issue a new URL. The old one stops working.</p>
           ${canRotate(user)
             ? html`<button type="submit" class="${btnDanger} mt-4 w-full" data-loading="Rotating…">${icon('refresh')} Rotate connector URL</button>`
             : html`<button type="button" disabled class="${btnDanger} mt-4 w-full opacity-50 cursor-not-allowed">${icon('refresh')} Rotate connector URL</button>
-              <p class="mt-2 text-xs text-slate-500">Turned off on the shared demo account so one visitor can't disconnect everyone else.</p>`}
+              <p class="mt-2 text-xs text-slate-400">Off for the shared demo account.</p>`}
         </form>`)}
       </aside>
     </div>`;

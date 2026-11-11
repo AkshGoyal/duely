@@ -41,7 +41,7 @@ Open the **pay link** on the phone (or in an incognito tab).
 
 ## Beat 3: The owner sees it and edits (45s)
 
-Refresh the **dashboard**. Acme is now **Promised**, with the date in the Promise column and "Promised to pay by …" as the last client action.
+Refresh the **dashboard**. Acme is now **Promised**, with "Pays by …" in the *Latest from client* column. **Chase today** at the top still shows Bluefin, Kaveri and Mehta, not Acme.
 
 Open **Acme Studios** and change **Amount** to `80000` → **Save changes**.
 
@@ -90,7 +90,7 @@ Open **Metrics**.
 
 ### Web
 - [ ] Logged out, `/` redirects to `/login`; a wrong password shows an error
-- [ ] Dashboard: 4 KPI tiles, aging bar, status tabs with counts, "via Claude" badges
+- [ ] Dashboard: 4 KPI figures with aging bar, 3 "Chase today" cards, 5 filter tabs with counts, "Claude" marks on Claude-created invoices
 - [ ] Phone width: the dashboard shows a card list and nothing scrolls sideways
 - [ ] Invoice page: edit amount → "Saved: amount." and a timeline entry
 - [ ] Line items: add, remove, "Use as amount"
@@ -109,7 +109,7 @@ Open **Metrics**.
 ### Connect & Metrics
 - [ ] Connect shows the URL with Copy, "Connected" once Claude has called a tool, 3 setup steps, 3 copyable prompts
 - [ ] Rotate is disabled on the shared demo account
-- [ ] Metrics shows the north star plus 6 metrics, each with its definition
+- [ ] Metrics shows the north star plus 6 metrics; the (i) on each opens its definition
 
 ## If something goes wrong live
 

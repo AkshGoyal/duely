@@ -9,13 +9,13 @@ const HEAD = (title: string) => html`
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23059669'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='Arial'%3E%E2%82%B9%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          fontFamily: { sans: ['Geist', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
           colors: { brand: { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b' } },
           boxShadow: { card: '0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06)' },
         },
@@ -23,7 +23,8 @@ const HEAD = (title: string) => html`
     };
   </script>
   <style>
-    body { font-feature-settings: 'cv11' 1, 'ss01' 1; }
+    body { font-feature-settings: 'ss01' 1; }
+    .num { letter-spacing: -0.01em; }
     .num { font-variant-numeric: tabular-nums; }
     :focus-visible { outline: 2px solid #059669; outline-offset: 2px; }
     a, button, summary, [role=button] { cursor: pointer; }
@@ -105,11 +106,10 @@ export function appPage(opts: { title: string; active?: string; business: string
       </nav>
     </div>
   </header>
-  <main id="main" class="max-w-6xl mx-auto px-4 py-6 sm:py-8">
+  <main id="main" class="max-w-6xl mx-auto px-4 py-6 sm:py-10 pb-16">
     ${flashBanner(opts.flash)}
     ${opts.body}
   </main>
-  <footer class="max-w-6xl mx-auto px-4 pb-10 pt-2 text-xs text-slate-400">Duely has no AI inside. Your own Claude writes; Duely remembers.</footer>
   ${GLOBAL_JS}
 </body>
 </html>`;
@@ -131,7 +131,7 @@ export function barePage(opts: { title: string; body: Raw; bg?: string }) {
 export const pageHeader = (title: string, sub?: unknown, actions?: unknown) => html`
   <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
     <div class="min-w-0">
-      <h1 class="text-2xl font-semibold tracking-tight text-slate-900">${title}</h1>
+      <h1 class="text-2xl sm:text-[28px] font-semibold tracking-tight text-slate-900">${title}</h1>
       ${sub ? html`<p class="text-sm text-slate-500 mt-1">${sub}</p>` : ''}
     </div>
     ${actions ? html`<div class="flex flex-wrap gap-2">${actions}</div>` : ''}

@@ -92,7 +92,7 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
           : html`Due ${formatDate(inv.due_date)} · in ${dueIn} day${dueIn === 1 ? '' : 's'}`;
 
   const content = html`
-    ${isOwner ? html`<div class="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">You're viewing your own pay link. Your visit isn't recorded as a client view.</div>` : ''}
+    ${isOwner ? html`<div class="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">Your own link. This visit isn't counted as a client view.</div>` : ''}
     ${done ? html`<div class="mb-4 flex gap-3 rounded-2xl bg-brand-600 text-white p-5 shadow-sm" role="status">${icon('checkCircle', 'h-6 w-6 shrink-0')}<div>${done(inv, biz)}</div></div>` : ''}
 
     <div class="bg-white rounded-3xl shadow-card border border-slate-200 overflow-hidden">
@@ -104,7 +104,7 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
             <p class="text-xs text-slate-500">Invoice ${inv.invoice_number} · for ${inv.client_name}</p>
           </div>
         </div>
-        <p class="mt-5 text-xs font-medium uppercase tracking-wide text-slate-500">Amount due</p>
+        <p class="mt-6 text-sm text-slate-500">Amount due</p>
         <p class="mt-1 text-4xl font-bold tracking-tight num text-slate-900">${formatINR(inv.amount_paise)}</p>
         <p class="mt-2 text-sm text-slate-600">${dueLine}</p>
         ${inv.status === 'promised' && inv.promise_date && !done
@@ -131,10 +131,10 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
       ${upi
         ? html`<div class="p-6 border-b border-slate-100 text-center">
             <a href="${upi}" class="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 active:bg-brand-800">${icon('smartphone', 'h-5 w-5')} Pay ${formatINR(inv.amount_paise)} with UPI app</a>
-            <p class="mt-4 text-xs text-slate-500">or scan with any UPI app</p>
+            <p class="mt-5 text-xs text-slate-500">or scan</p>
             <img src="${qr}" alt="UPI QR code for ${formatINR(inv.amount_paise)}" class="mx-auto mt-2 h-48 w-48 rounded-lg border border-slate-200 p-1" />
             <p class="mt-2 text-xs text-slate-500">UPI ID: <span class="font-mono text-slate-700">${owner.upi_id}</span></p>
-            <p class="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-500">${icon('shield', 'h-3.5 w-3.5 text-brand-600')} You pay ${biz} directly. Duely never touches the money.</p>
+            <p class="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-500">${icon('shield', 'h-3.5 w-3.5 text-brand-600')} Paid straight to ${biz}</p>
           </div>`
         : payable
           ? html`<div class="p-6 border-b border-slate-100 text-sm text-slate-600">Please pay ${biz} using the bank details they shared with you.</div>`
@@ -142,7 +142,7 @@ payRouter.get('/pay/:token', async (req: Request, res: Response) => {
 
       ${payable
         ? html`<div class="p-6 space-y-3">
-            <p class="text-sm font-semibold text-slate-900">Already sorted, or need more time?</p><p class="text-xs text-slate-500 -mt-2">Let ${biz} know in one tap.</p>
+            <p class="text-sm font-medium text-slate-500">Or let ${biz} know</p>
 
             <details class="group rounded-xl border border-slate-200 open:border-brand-600">
               <summary class="cursor-pointer list-none min-h-[48px] px-4 py-3 font-medium text-slate-900 flex justify-between items-center rounded-xl hover:bg-slate-50">I've paid ${icon('chevronDown', 'h-5 w-5 text-slate-400 transition-transform group-open:rotate-180')}</summary>

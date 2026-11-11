@@ -64,11 +64,9 @@ function loginPage(opts: { error?: string; email?: string; next?: string }) {
     body: html`
     <div class="min-h-screen flex flex-col items-center justify-center px-4">
       <a href="/" class="flex items-center gap-2 font-semibold text-xl tracking-tight mb-2">${logoMark('h-9 w-9')} Duely</a>
-      <p class="mb-8 text-sm text-slate-500 text-center max-w-xs">Your own Claude chases overdue invoices. Duely keeps every pay link live and every promise on record.</p>
+      <p class="mb-8 text-sm text-slate-500 text-center max-w-xs">Your Claude chases late invoices. Duely keeps the record.</p>
       <form method="post" action="/login" class="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-card p-6 sm:p-8 space-y-5">
-        <div>
-          <h1 class="text-lg font-semibold">Log in</h1>
-        </div>
+        <h1 class="text-lg font-semibold">Log in</h1>
         ${opts.error ? html`<p role="alert" class="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">${opts.error}</p>` : ''}
         <input type="hidden" name="next" value="${opts.next ?? '/'}" />
         <div><label class="${labelCls}" for="email">Email</label>

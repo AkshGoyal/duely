@@ -1,14 +1,55 @@
 import { Router } from 'express';
-import { daysOverdue, formatDate, formatINR, todayIST } from '../lib/format';
-import { describeClientAction, isOpen, listWithActivity, promiseBroken, STATUSES, Status } from '../services/invoices';
+import { daysBetween, daysOverdue, formatDate, formatINR, todayIST } from '../lib/format';
+import { describeClientAction, InvoiceWithActivity, isOpen, listWithActivity, promiseBroken, Status } from '../services/invoices';
 import { receivablesSummary } from '../services/summary';
 import { requireAuth, takeFlash } from './auth';
 import { html } from './html';
 import { icon } from './icons';
 import { appPage, card, pageHeader } from './layout';
-import { btnPrimary, sourceBadge, statusBadge } from './ui';
+import { btnPrimary, statusBadge } from './ui';
 
-const BUCKET_COLORS = ['bg-slate-300', 'bg-amber-300', 'bg-orange-400', 'bg-red-500', 'bg-red-800'];
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+const AGING = [
+  { label: 'Not due', color: 'bg-slate-300' },
+  { label: '1–15d', color: 'bg-amber-300' },
+  { label: '16–30d', color: 'bg-orange-400' },
+  { label: '31–60d', color: 'bg-red-500' },
+  { label: '60d+', color: 'bg-red-800' },
+];
+
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'overdue', label: 'Overdue' },
+  { key: 'promised', label: 'Promised' },
+  { key: 'disputed', label: 'Disputed' },
+  { key: 'paid', label: 'Paid' },
+];
+
+type PriorityItem = Awaited<ReturnType<typeof receivablesSummary>>['priority'][number];
+
+/** Short web label for why an invoice needs attention. Same rules as the summary tool, fewer words. */
+function attention(p: PriorityItem, today: string) {
+  if (p.promise_broken)
+    return { why: `Promise broken ${daysBetween(p.promise_date!, today)}d ago`, todo: 'Send a firm nudge', tone: 'text-red-700' };
+  if (p.status === 'disputed') return { why: 'Client raised an issue', todo: 'Resolve before chasing', tone: 'text-red-700' };
+  if (p.nudges_sent >= 2) return { why: `${p.days_overdue}d overdue · ${p.nudges_sent} nudges`, todo: 'Escalate or call', tone: 'text-amber-800' };
+  if (p.nudges_sent === 0) return { why: `${p.days_overdue}d overdue · not chased`, todo: 'Send a first nudge', tone: 'text-amber-800' };
+  return { why: `${p.days_overdue}d overdue`, todo: 'Follow up', tone: 'text-amber-800' };
+}
+
+/** One line on the latest thing that happened with the client. */
+function latest(i: InvoiceWithActivity, today: string) {
+  if (promiseBroken(i, today)) return html`<span class="text-red-700 font-medium">Promise broken · ${formatDate(i.promise_date)}</span>`;
+  if (i.status === 'promised' && i.promise_date) return html`<span class="text-slate-700">Pays by ${formatDate(i.promise_date)}</span>`;
+  const a = describeClientAction(i.lca_type, i.lca_meta);
+  return a ? html`<span class="text-slate-600">${a}</span>` : html`<span class="text-slate-300">—</span>`;
+}
+
+const overdueText = (od: number) =>
+  od > 0 ? html`<span class="${od > 30 ? 'text-red-700' : 'text-amber-800'} font-medium">${od}d overdue</span>` : '';
+
+const claudeMark = html`<span class="inline-flex items-center gap-0.5 text-orange-700" title="Created by Claude">${icon('sparkle', 'h-3 w-3')}Claude</span>`;
 
 export const dashboardRouter = Router();
 
@@ -17,15 +58,10 @@ dashboardRouter.get('/', requireAuth, async (req, res) => {
   const today = todayIST();
   const [summary, all] = await Promise.all([receivablesSummary(user.id), listWithActivity(user.id)]);
 
+  const isOverdue = (i: InvoiceWithActivity) => isOpen(i.status) && daysOverdue(i.due_date, today) > 0;
   const filter = String(req.query.status ?? 'all');
   const rows = all
-    .filter((i) =>
-      filter === 'all'
-        ? i.status !== 'cancelled'
-        : filter === 'overdue'
-          ? isOpen(i.status) && daysOverdue(i.due_date, today) > 0
-          : i.status === filter,
-    )
+    .filter((i) => (filter === 'all' ? i.status !== 'cancelled' : filter === 'overdue' ? isOverdue(i) : i.status === filter))
     .sort((a, b) => {
       // Open invoices first (most overdue first), then the rest by due date, newest first.
       const ao = isOpen(a.status) ? 1 : 0;
@@ -35,80 +71,81 @@ dashboardRouter.get('/', requireAuth, async (req, res) => {
       return b.due_date.localeCompare(a.due_date);
     });
 
-  const counts: Record<string, number> = { all: all.filter((i) => i.status !== 'cancelled').length };
-  counts.overdue = all.filter((i) => isOpen(i.status) && daysOverdue(i.due_date, today) > 0).length;
-  for (const s of STATUSES) counts[s] = all.filter((i) => i.status === s).length;
+  const counts: Record<string, number> = {
+    all: all.filter((i) => i.status !== 'cancelled').length,
+    overdue: all.filter(isOverdue).length,
+  };
+  for (const t of TABS.slice(2)) counts[t.key] = all.filter((i) => i.status === t.key).length;
+  const cancelled = all.filter((i) => i.status === 'cancelled').length;
 
-  const promisedWeek = summary.promises_due_this_week.reduce((s, p) => s + p.amount * 100, 0);
   const t = summary.totals;
+  const promisedWeek = summary.promises_due_this_week.reduce((s, p) => s + p.amount * 100, 0);
   const kpis = [
-    { label: 'Outstanding', value: t.outstanding.formatted, sub: `${t.outstanding.count} open invoice${t.outstanding.count === 1 ? '' : 's'}`, ic: 'wallet', tone: 'text-slate-900', chip: 'bg-slate-100 text-slate-600' },
-    { label: 'Overdue', value: t.overdue.formatted, sub: `${t.overdue.count} past due date`, ic: 'alert', tone: t.overdue.count ? 'text-red-700' : 'text-slate-900', chip: 'bg-red-50 text-red-600' },
-    { label: 'Promised this week', value: formatINR(promisedWeek), sub: `${summary.promises_due_this_week.length} promise${summary.promises_due_this_week.length === 1 ? '' : 's'} due`, ic: 'calendar', tone: 'text-slate-900', chip: 'bg-amber-50 text-amber-600' },
-    { label: 'Collected this month', value: t.collected_this_month.formatted, sub: `${t.collected_this_month.count} invoice${t.collected_this_month.count === 1 ? '' : 's'} paid`, ic: 'checkCircle', tone: 'text-brand-700', chip: 'bg-brand-50 text-brand-600' },
+    { label: 'Outstanding', value: t.outstanding.formatted, sub: `${t.outstanding.count} open`, tone: 'text-slate-900' },
+    { label: 'Overdue', value: t.overdue.formatted, sub: plural(t.overdue.count, 'invoice'), tone: t.overdue.count ? 'text-red-700' : 'text-slate-900' },
+    { label: 'Promised this week', value: formatINR(promisedWeek), sub: plural(summary.promises_due_this_week.length, 'promise'), tone: 'text-slate-900' },
+    { label: 'Collected this month', value: t.collected_this_month.formatted, sub: `${t.collected_this_month.count} paid`, tone: 'text-brand-700' },
   ];
-
   const agingTotal = summary.aging.reduce((s, b) => s + b.amount, 0);
-  const tabs = ['all', 'overdue', 'sent', 'viewed', 'promised', 'disputed', 'paid', 'draft', 'cancelled'];
-  const alerts = [
-    summary.broken_promises.length ? html`<a href="/?status=promised" class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-800 ring-1 ring-inset ring-red-200 hover:bg-red-100">${icon('alert', 'h-3.5 w-3.5')}${summary.broken_promises.length} broken promise${summary.broken_promises.length === 1 ? '' : 's'}</a>` : '',
-    summary.open_disputes.length ? html`<a href="/?status=disputed" class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-200 hover:bg-amber-100">${icon('flag', 'h-3.5 w-3.5')}${summary.open_disputes.length} open dispute${summary.open_disputes.length === 1 ? '' : 's'}</a>` : '',
-  ];
 
-  const overdueCell = (od: number) =>
-    od > 0 ? html`<span class="${od > 30 ? 'text-red-700 font-semibold' : 'text-amber-800 font-medium'}">${od}d</span>` : html`<span class="text-slate-400">—</span>`;
+  // "Chase today": the summary's rule-based priority list, minus clients who are inside a kept promise.
+  const chase = summary.priority.filter((p) => p.status !== 'promised' || p.promise_broken).slice(0, 3);
 
   const body = html`
-    ${pageHeader(
-      'Receivables',
-      html`As of ${formatDate(today)} <span class="inline-flex flex-wrap gap-2 align-middle ml-2">${alerts}</span>`,
-      html`<a href="/invoices/new" class="${btnPrimary}">${icon('plus')} New invoice</a>`,
-    )}
-
-    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6" aria-label="Key figures">
-      ${kpis.map(
-        (k) => html`<div class="bg-white rounded-2xl border border-slate-200 shadow-card p-4 sm:p-5">
-          <div class="flex items-center justify-between">
-            <p class="text-xs sm:text-sm font-medium text-slate-500">${k.label}</p>
-            <span class="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-lg ${k.chip}">${icon(k.ic)}</span>
-          </div>
-          <p class="mt-2 text-xl sm:text-2xl font-semibold tracking-tight num ${k.tone}">${k.value}</p>
-          <p class="mt-1 text-xs text-slate-500">${k.sub}</p>
-        </div>`,
-      )}
-    </section>
+    ${pageHeader('Receivables', null, html`<a href="/invoices/new" class="${btnPrimary}">${icon('plus')} New invoice</a>`)}
 
     ${card(
-      html`<div class="p-4 sm:p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-semibold text-slate-900">Aging</h2>
-          <span class="text-xs text-slate-500">Open invoices by days overdue</span>
-        </div>
-        <div class="flex h-3 w-full overflow-hidden rounded-full bg-slate-100" role="img" aria-label="${summary.aging.map((b) => `${b.label}: ${b.formatted}`).join(', ')}">
-          ${agingTotal
-            ? summary.aging.map((b, i) =>
-                b.amount ? html`<div class="${BUCKET_COLORS[i]} border-r-2 border-white last:border-r-0" style="width:${((b.amount / agingTotal) * 100).toFixed(2)}%" title="${b.label}: ${b.formatted}"></div>` : '',
-              )
-            : ''}
-        </div>
-        <dl class="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
-          ${summary.aging.map(
-            (b, i) => html`<div class="flex items-start gap-2">
-              <span class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm ${BUCKET_COLORS[i]}" aria-hidden="true"></span>
-              <div><dt class="text-xs text-slate-500">${b.label}</dt><dd class="text-sm font-semibold num text-slate-900">${b.formatted} <span class="text-slate-400 font-normal">· ${b.count}</span></dd></div>
-            </div>`,
-          )}
-        </dl>
-      </div>`,
+      html`<dl class="grid grid-cols-2 lg:grid-cols-4 divide-slate-100 [&>div]:p-4 sm:[&>div]:p-5 [&>div:nth-child(odd)]:border-r lg:[&>div]:border-r lg:[&>div:last-child]:border-r-0 [&>div:nth-child(-n+2)]:border-b lg:[&>div]:border-b-0 border-slate-100">
+        ${kpis.map(
+          (k) => html`<div class="border-slate-100">
+            <dt class="text-sm text-slate-500">${k.label}</dt>
+            <dd class="mt-1 text-2xl sm:text-[28px] font-semibold tracking-tight num ${k.tone}">${k.value}</dd>
+            <dd class="text-xs text-slate-400">${k.sub}</dd>
+          </div>`,
+        )}
+      </dl>
+      ${agingTotal
+        ? html`<div class="border-t border-slate-100 px-4 sm:px-5 py-4">
+            <div class="flex h-2 w-full overflow-hidden rounded-full bg-slate-100" role="img" aria-label="Open amount by age: ${summary.aging.map((b, i) => `${AGING[i].label} ${b.formatted}`).join(', ')}">
+              ${summary.aging.map((b, i) =>
+                b.amount ? html`<div class="${AGING[i].color} border-r-2 border-white last:border-r-0" style="width:${((b.amount / agingTotal) * 100).toFixed(2)}%" title="${AGING[i].label}: ${b.formatted}"></div>` : '',
+              )}
+            </div>
+            <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-slate-500">
+              ${summary.aging.map(
+                (b, i) => html`<li class="flex items-center gap-1.5 ${b.amount ? '' : 'opacity-50'}"><span class="h-2 w-2 rounded-sm ${AGING[i].color}" aria-hidden="true"></span>${AGING[i].label} <span class="num font-medium text-slate-800">${b.formatted}</span></li>`,
+              )}
+            </ul>
+          </div>`
+        : ''}`,
       'mb-6',
     )}
 
+    ${chase.length
+      ? html`<section class="mb-6" aria-labelledby="chase-h">
+          <h2 id="chase-h" class="mb-3 text-sm font-semibold text-slate-900">Chase today</h2>
+          <ol class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            ${chase.map((p) => {
+              const a = attention(p, today);
+              return html`<li><a href="/invoices/${p.id}" class="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-card transition-colors hover:border-brand-600">
+                <div class="flex items-baseline justify-between gap-3">
+                  <p class="font-medium text-slate-900 truncate">${p.client_name}</p>
+                  <p class="num font-semibold text-slate-900 whitespace-nowrap">${p.formatted}</p>
+                </div>
+                <p class="mt-1 text-sm ${a.tone}">${a.why}</p>
+                <p class="mt-auto pt-3 flex items-center justify-between text-sm font-medium text-brand-700">${a.todo}${icon('chevronRight', 'h-4 w-4 transition-transform group-hover:translate-x-0.5')}</p>
+              </a></li>`;
+            })}
+          </ol>
+        </section>`
+      : ''}
+
     ${card(html`
-      <div class="flex gap-1 overflow-x-auto px-2 sm:px-3 pt-2 border-b border-slate-200" role="tablist" aria-label="Filter by status">
-        ${tabs.map(
-          (s) => html`<a role="tab" aria-selected="${String(filter === s)}" href="${s === 'all' ? '/' : `/?status=${s}`}" class="whitespace-nowrap px-3 py-2.5 text-sm border-b-2 -mb-px transition-colors ${
-            filter === s ? 'border-brand-600 text-slate-900 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }">${s[0].toUpperCase() + s.slice(1)} <span class="ml-0.5 rounded-full px-1.5 text-xs ${filter === s ? 'bg-brand-50 text-brand-800' : 'bg-slate-100 text-slate-500'}">${counts[s] ?? 0}</span></a>`,
+      <div class="flex gap-1 overflow-x-auto px-2 sm:px-3 border-b border-slate-200" role="tablist" aria-label="Filter invoices">
+        ${TABS.map(
+          (tb) => html`<a role="tab" aria-selected="${String(filter === tb.key)}" href="${tb.key === 'all' ? '/' : `/?status=${tb.key}`}" class="whitespace-nowrap px-3 py-3 text-sm border-b-2 -mb-px transition-colors ${
+            filter === tb.key ? 'border-slate-900 text-slate-900 font-medium' : 'border-transparent text-slate-500 hover:text-slate-800'
+          }">${tb.label}<span class="ml-1.5 num text-xs ${filter === tb.key ? 'text-slate-500' : 'text-slate-400'}">${counts[tb.key] ?? 0}</span></a>`,
         )}
       </div>
       ${rows.length
@@ -116,68 +153,56 @@ dashboardRouter.get('/', requireAuth, async (req, res) => {
           <ul class="md:hidden divide-y divide-slate-100">
             ${rows.map((i) => {
               const od = isOpen(i.status) ? daysOverdue(i.due_date, today) : 0;
-              const broken = promiseBroken(i, today);
               return html`<li><a href="/invoices/${i.id}" class="block px-4 py-3.5 active:bg-slate-50">
                 <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0"><p class="font-medium text-slate-900 truncate">${i.client_name}</p><p class="text-xs text-slate-500">${i.invoice_number} · due ${formatDate(i.due_date)}</p></div>
+                  <p class="font-medium text-slate-900 truncate">${i.client_name}</p>
                   <p class="font-semibold num whitespace-nowrap">${formatINR(i.amount_paise)}</p>
                 </div>
-                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                  ${statusBadge(i.status as Status)}
-                  ${od > 0 ? html`<span class="${od > 30 ? 'text-red-700 font-semibold' : 'text-amber-800 font-medium'}">${od} days overdue</span>` : ''}
-                  ${broken ? html`<span class="text-red-700 font-medium">Promise broken</span>` : ''}
-                  ${i.source === 'claude' ? sourceBadge('claude') : ''}
+                <div class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                  ${statusBadge(i.status as Status)} ${overdueText(od)} ${i.source === 'claude' ? claudeMark : ''}
                 </div>
               </a></li>`;
             })}
           </ul>
           <div class="hidden md:block overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-left text-xs uppercase tracking-wide text-slate-500 bg-slate-50/60">
-              <tr class="border-b border-slate-200">
-                <th scope="col" class="px-4 py-2.5 font-medium">Client</th>
-                <th scope="col" class="px-4 py-2.5 font-medium text-right">Amount</th>
-                <th scope="col" class="px-4 py-2.5 font-medium">Due</th>
-                <th scope="col" class="px-4 py-2.5 font-medium text-right">Overdue</th>
-                <th scope="col" class="px-4 py-2.5 font-medium">Status</th>
-                <th scope="col" class="px-4 py-2.5 font-medium">Promise</th>
-                <th scope="col" class="px-4 py-2.5 font-medium hidden lg:table-cell">Last client action</th>
-                <th scope="col" class="px-4 py-2.5 font-medium">Source</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              ${rows.map((i) => {
-                const od = isOpen(i.status) ? daysOverdue(i.due_date, today) : 0;
-                const broken = promiseBroken(i, today);
-                return html`<tr class="group hover:bg-slate-50 transition-colors cursor-pointer" onclick="location.href='/invoices/${i.id}'">
-                  <td class="px-4 py-3">
-                    <a href="/invoices/${i.id}" class="font-medium text-slate-900 group-hover:text-brand-700">${i.client_name}</a>
-                    <div class="text-xs text-slate-500">${i.invoice_number}</div>
-                  </td>
-                  <td class="px-4 py-3 text-right font-semibold num whitespace-nowrap">${formatINR(i.amount_paise)}</td>
-                  <td class="px-4 py-3 whitespace-nowrap text-slate-600">${formatDate(i.due_date)}</td>
-                  <td class="px-4 py-3 text-right num whitespace-nowrap">${overdueCell(od)}</td>
-                  <td class="px-4 py-3">${statusBadge(i.status as Status)}</td>
-                  <td class="px-4 py-3 whitespace-nowrap ${broken ? 'text-red-700 font-medium' : 'text-slate-600'}">${
-                    i.promise_date ? html`${formatDate(i.promise_date)}${broken ? html`<span class="block text-xs">Broken</span>` : ''}` : html`<span class="text-slate-400">—</span>`
-                  }</td>
-                  <td class="px-4 py-3 text-slate-600 hidden lg:table-cell max-w-[15rem] truncate">${describeClientAction(i.lca_type, i.lca_meta) ?? html`<span class="text-slate-400">—</span>`}</td>
-                  <td class="px-4 py-3">${sourceBadge(i.source)}</td>
-                </tr>`;
-              })}
-            </tbody>
-          </table>
-        </div>`
+            <table class="w-full text-sm">
+              <thead class="text-left text-xs text-slate-500">
+                <tr class="border-b border-slate-100">
+                  <th scope="col" class="px-5 py-3 font-medium">Client</th>
+                  <th scope="col" class="px-4 py-3 font-medium text-right">Amount</th>
+                  <th scope="col" class="px-4 py-3 font-medium">Due</th>
+                  <th scope="col" class="px-4 py-3 font-medium">Status</th>
+                  <th scope="col" class="px-4 py-3 font-medium">Latest from client</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${rows.map((i) => {
+                  const od = isOpen(i.status) ? daysOverdue(i.due_date, today) : 0;
+                  return html`<tr class="group hover:bg-slate-50 transition-colors cursor-pointer" onclick="location.href='/invoices/${i.id}'">
+                    <td class="px-5 py-3.5">
+                      <a href="/invoices/${i.id}" class="font-medium text-slate-900 group-hover:text-brand-700">${i.client_name}</a>
+                      <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-400">${i.invoice_number} ${i.source === 'claude' ? claudeMark : ''}</div>
+                    </td>
+                    <td class="px-4 py-3.5 text-right font-semibold num whitespace-nowrap">${formatINR(i.amount_paise)}</td>
+                    <td class="px-4 py-3.5 whitespace-nowrap"><div class="text-slate-700">${formatDate(i.due_date)}</div><div class="text-xs">${overdueText(od)}</div></td>
+                    <td class="px-4 py-3.5">${statusBadge(i.status as Status)}</td>
+                    <td class="px-4 py-3.5 max-w-[18rem] truncate">${latest(i, today)}</td>
+                  </tr>`;
+                })}
+              </tbody>
+            </table>
+          </div>
+          ${cancelled && filter === 'all'
+            ? html`<p class="border-t border-slate-100 px-5 py-3 text-xs text-slate-400"><a class="hover:text-slate-700" href="/?status=cancelled">${cancelled} cancelled hidden · show</a></p>`
+            : ''}`
         : all.length
-          ? html`<div class="px-6 py-12 text-center text-sm text-slate-500">No invoices with this status. <a class="font-medium text-brand-700 hover:underline" href="/">Show all</a></div>`
-          : html`<div class="px-6 py-14 text-center">
-              <span class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">${icon('sparkle', 'h-6 w-6')}</span>
-              <p class="mt-4 font-semibold text-slate-900">No invoices yet</p>
-              <p class="mt-2 text-sm text-slate-500 max-w-md mx-auto">Connect your Claude, then say something like:</p>
-              <p class="mt-3 inline-block rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-700 max-w-md">“Acme Studios owes me ₹85,000 for the October retainer, due 20 Oct. Create it in Duely.”</p>
+          ? html`<div class="px-6 py-12 text-center text-sm text-slate-500">Nothing here. <a class="font-medium text-brand-700 hover:underline" href="/">Show all</a></div>`
+          : html`<div class="px-6 py-16 text-center">
+              <p class="font-semibold text-slate-900">No invoices yet</p>
+              <p class="mt-2 text-sm text-slate-500">Connect Claude and tell it who owes you money.</p>
               <div class="mt-5 flex flex-wrap justify-center gap-2">
                 <a href="/connect" class="${btnPrimary}">${icon('plug')} Connect Claude</a>
-                <a href="/invoices/new" class="inline-flex min-h-[40px] items-center rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100">or create one by hand</a>
+                <a href="/invoices/new" class="inline-flex min-h-[40px] items-center rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100">Add one by hand</a>
               </div>
             </div>`}
     `)}`;
