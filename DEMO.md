@@ -4,7 +4,7 @@
 **Login:** `demo@duely.app` / `duely-demo-2026`
 **Claude connector URL:** copy it from the app's **Connect Claude** page (it's secret, so it isn't printed here).
 
-Runtime: about 4 minutes. You need two screens: claude.ai on a laptop and a phone for the pay page (or an incognito window).
+Runtime: about 4.5 minutes. You need two screens: claude.ai on a laptop and a phone for the pay page (or an incognito window).
 
 ---
 
@@ -72,6 +72,25 @@ Open **Metrics**.
 **Show:** the north star (₹ collected through Duely links within 30 days of due date), activation, client response rate, promise-kept rate, edit rate (a tool-quality proxy), and Claude vs web.
 
 **Say:** "Every number is computed live from the event log. Edit rate tells me whether my tool descriptions are good. If people keep correcting what Claude created, the prompt is wrong."
+
+## Close: how the loop closes (30s)
+
+**Say:** "Every rupee should end up paid, promised or disputed. Never unknown. Today clients tell us, or you tell Claude. In v2, a Razorpay webhook confirms payments automatically, WhatsApp read receipts show whether a nudge was seen, and a daily digest brings you back to Claude when a client goes quiet. That's also the business: a take rate on money collected through Duely links."
+
+---
+
+## Likely questions (short answers; full detail in ROADMAP.md)
+
+| Question | Answer |
+| --- | --- |
+| How does Duely know an invoice is paid? | v1: the client taps *I've paid* (with UTR), or the owner marks it paid on the web or tells Claude. v2: a Razorpay webhook confirms it, and *I've paid* becomes "claimed" until confirmed. |
+| What if the client pays and taps nothing? | v1 blind spot. The owner pastes a bank statement into Claude: "mark whatever these paid". Claude matches by amount and UTR and calls `mark_paid`. v2: webhook, plus bank reconciliation through the Account Aggregator framework. |
+| What if the client ignores the message? | Silence is data. Days overdue grow, the invoice moves up *Chase today*, and Claude sees the nudge history and escalates one step (friendly → firm → call). v2: read receipts and a daily owner digest. |
+| Do you know the nudge was actually sent? | v1: we know it was drafted, not sent. v2: log the tap on the send button, then WhatsApp Business API delivery and read receipts. |
+| Isn't trusting *I've paid* risky? | Yes, and it's deliberate for v1 speed. The fix is the "claimed paid" state plus webhook confirmation, and the north star will only count confirmed payments. |
+| How do invoices get in? | v1: tell Claude (a sentence, a pasted list, a PDF or a screenshot) or use the web form. v2: Tally / Zoho sync. |
+| How do you make money? | Take rate on payments collected through Duely links (v2 Razorpay), plus a subscription for teams and sync. Duely's AI cost is zero because the customer brings their own Claude. |
+| How does it grow? | Every pay page carries a "Sent with Duely" footer and reaches someone else's client. Later, payers get one page for everything they owe. |
 
 ---
 
